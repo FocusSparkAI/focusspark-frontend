@@ -14,6 +14,7 @@ export const BACKEND_ROUTES = {
   },
   profile: {
     get: '/auth/profile',
+    update: '/auth/profile',
     delete: '/auth/delete-user',
   },
   analysis: {

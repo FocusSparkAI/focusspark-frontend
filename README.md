@@ -1,61 +1,29 @@
 # FocusSpark Frontend
 
-FocusSpark Frontend is the website/dashboard part of the FocusSpark FYP. It focuses on onboarding, authentication screens, productivity tracking, Pomodoro sessions, focus detection, achievements, reports, profile, settings, and general marketing pages.
+FocusSpark Frontend is the web application for the FocusSpark project. It contains the public landing pages, authentication flows, onboarding, and the student dashboard (reports, analytics, achievements, profile, and settings).
 
-The AI chat, quiz, and flashcard experiences are handled by the separate browser extension project, not this frontend.
+This repo does NOT include the AI chat, quiz, or flashcard browser-extension frontend — those live in separate projects.
 
-## Tech Stack
+**Tech stack:** React, TypeScript, Vite, Tailwind CSS, shadcn/ui components, Recharts, Axios
 
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS v4 style utilities
-- Motion for animations
-- shadcn/ui-style components
-- Recharts
-- Supabase/Hono server utilities
+**Quick links:** [src/](src) — main app source, [build/](build) — production output
 
-## Main Features
+## Prerequisites
 
-- Landing page with light/dark hero variants
-- Sign in, sign up, and forgot password screens
-- Guided onboarding flow
-- Student dashboard
-- Pomodoro timer
-- Focus detection and webcam test screens
-- Achievements and rewards
-- Reports and analytics
-- Profile and settings pages
-- Notifications and toast feedback
+- Node.js 18+ (or the version specified in your `.nvmrc` if present)
+- npm (or yarn/pnpm)
 
-## Project Structure
+## Environment
 
-```text
-src/
-  App.tsx
-  main.tsx
-  components/
-    Navigation.tsx
-    HeroSection.tsx
-    HeroSectionDark.tsx
-    StudentDashboard.tsx
-    DashboardSidebar.tsx
-    DashboardNavbar.tsx
-    PomodoroTimer.tsx
-    ProgressStats.tsx
-    AchievementsScreen.tsx
-    ReportsAnalytics.tsx
-    ProfileScreen.tsx
-    SettingsScreen.tsx
-    WebcamTestScreen.tsx
-    ui/
-  context/
-  config/
-  styles/
-  utils/
+Create a `.env` file in the project root containing at least:
+
+```env
+VITE_BACKEND_BASE_URL=http://127.0.0.1:8000
 ```
 
-## Getting Started
+Use your production backend URL when deploying. The app expects `VITE_BACKEND_BASE_URL` to be set and will fail fast without it.
+
+## Install & Run (local development)
 
 Install dependencies:
 
@@ -63,21 +31,78 @@ Install dependencies:
 npm install
 ```
 
-Run the development server:
+Start the dev server (Vite):
 
 ```bash
 npm run dev
 ```
 
-Build for production:
+Open the app at the URL Vite prints (usually `http://localhost:5173`).
+
+## Build & Preview (production)
+
+Build the production bundle:
 
 ```bash
 npm run build
 ```
 
-## Notes
+Preview the production build locally:
 
-- The app builds to the `build/` directory.
-- Package versions are managed through `package.json`; source imports and Vite aliases should not include version suffixes.
-- The dashboard sidebar intentionally excludes quiz and flashcard pages because those flows live in the extension.
-- Gemini/frontend AI client code is not part of this frontend anymore.
+```bash
+npm run preview
+```
+
+The built files are placed in the `build/` directory — serve that folder from your static host or CDN.
+
+## Available NPM scripts
+
+- `npm run dev` — start Vite dev server
+- `npm run build` — create production build
+- `npm run preview` — preview production build locally
+
+## Project structure (important folders)
+
+```text
+src/
+  main.tsx              # React entry
+  app/
+    App.tsx            # App shell + routing
+  components/           # Reusable UI components (layout, ui)
+  pages/                # Route pages (auth, dashboard, home, onboarding, etc.)
+  config/backend.ts     # Backend API helpers / base URL
+  context/              # React contexts (FocusContext)
+  hooks/                # Reusable hooks
+  styles/               # global Tailwind/CSS
+  utils/                # small utilities
+```
+
+## Backend integration
+
+The frontend calls the backend using `VITE_BACKEND_BASE_URL`. Endpoints used by the app include authentication and profile endpoints (e.g., `/auth/login`, `/auth/signup`, `/auth/profile`). See `src/config/backend.ts` for client setup.
+
+## Notes & tips
+
+- If `npm run dev` exits with errors, check your `VITE_BACKEND_BASE_URL` and that the backend is reachable.
+- Tailwind classes are managed in `src/styles` and through shadcn/ui component patterns.
+
+## Contributing
+
+If you want to contribute:
+
+1. Fork and create a topic branch.
+2. Run the app locally and verify pages you touched.
+3. Open a pull request with a clear description.
+
+## Next steps
+
+- Add a `CONTRIBUTING.md` and CI checks if you want a stricter workflow.
+
+---
+
+If you'd like, I can also:
+
+- add a short development checklist to `README.md`
+- create a `docs/` folder with example requests for the backend
+
+
