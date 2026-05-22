@@ -40,10 +40,9 @@ pnpm-debug.log*
 .cache/
 
 ## Misc
-.cache/
 coverage/
 *.local
-.turbo/
+
 
 # TypeScript
 *.tsbuildinfo
