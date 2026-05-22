@@ -42,6 +42,24 @@ interface ProfileScreenProps {
   onReplayOnboarding?: () => void;
 }
 
+const academicFocusOptions = [
+  'Computer Science',
+  'Medicine',
+  'Engineering',
+  'Business',
+  'Law',
+  'Psychology',
+  'Biology',
+  'Mathematics',
+  'Physics',
+  'Other',
+];
+
+const resolveAssetUrl = (url: string) => {
+  if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+  return buildBackendUrl(url);
+};
+
 export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -102,7 +120,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
           setAcademicFocus(data.academic_focus ?? data.academicFocus ?? '');
           setBio(data.bio ?? '');
           setTempBio(data.bio ?? '');
-          setAvatarUrl(data.avatar_url ?? data.avatarUrl ?? '');
+          setAvatarUrl(resolveAssetUrl(data.avatar_url ?? data.avatarUrl ?? ''));
         }
       } catch (err: any) {
         const message = err?.response?.data?.message || err?.message || 'Failed to load profile';
@@ -156,16 +174,53 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
     }, 500);
   };
 
-  const handleClearData = () => {
-    setShowClearDataDialog(false);
-    toast.success('Local data cleared successfully.');
+  const handleClearData = async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.error('Not authenticated');
+      setShowClearDataDialog(false);
+      onNavigate('signin');
+      return;
+    }
+
+    try {
+      await axios.delete(buildBackendUrl(BACKEND_ROUTES.study.clearData), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setShowClearDataDialog(false);
+      toast.success('Account data cleared successfully.');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to clear account data';
+      toast.error(message);
+    }
   };
 
-  const handleExportData = () => {
-    toast.success('Exporting your account data...');
-    setTimeout(() => {
-      toast.success('Data exported. Check your downloads.');
-    }, 1500);
+  const handleExportData = async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.error('Not authenticated');
+      onNavigate('signin');
+      return;
+    }
+
+    try {
+      const response = await axios.get(buildBackendUrl(`${BACKEND_ROUTES.study.export}?format=json`), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'focusspark-account-data.json';
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Account data export ready.');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to export account data';
+      toast.error(message);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -203,7 +258,36 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
   };
 
   const handleAvatarUpload = () => {
-    toast.success('Avatar upload coming soon.');
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.error('Not authenticated');
+      onNavigate('signin');
+      return;
+    }
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await axios.post(buildBackendUrl(BACKEND_ROUTES.profile.avatar), formData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const nextAvatarUrl = response.data?.avatar_url ?? response.data?.avatarUrl ?? '';
+        setAvatarUrl(resolveAssetUrl(nextAvatarUrl));
+        toast.success('Profile picture updated.');
+      } catch (err: any) {
+        const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to upload avatar';
+        toast.error(message);
+      }
+    };
+    input.click();
   };
 
   return (
@@ -329,17 +413,11 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Computer Science">Computer Science</SelectItem>
-                    <SelectItem value="Engineering">Engineering</SelectItem>
-                    <SelectItem value="Mathematics">Mathematics</SelectItem>
-                    <SelectItem value="Physics">Physics</SelectItem>
-                    <SelectItem value="Chemistry">Chemistry</SelectItem>
-                    <SelectItem value="Biology">Biology</SelectItem>
-                    <SelectItem value="Business">Business</SelectItem>
-                    <SelectItem value="Medicine">Medicine</SelectItem>
-                    <SelectItem value="Law">Law</SelectItem>
-                    <SelectItem value="Liberal Arts">Liberal Arts</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {academicFocusOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -443,8 +521,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
                 <div className="flex items-center gap-3">
                   <Trash2 className="w-5 h-5 text-yellow-400" />
                   <div className="text-left">
-                    <p>Clear Local Data</p>
-                    <p className="text-xs text-secondary">Remove cached files and temporary data</p>
+                    <p>Clear Account Data</p>
+                    <p className="text-xs text-secondary">Remove study history, chats, quizzes, and flashcards</p>
                   </div>
                 </div>
                 <ArrowRight className="h-4 w-4 text-secondary" />
@@ -477,9 +555,9 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
       <Dialog open={showClearDataDialog} onOpenChange={setShowClearDataDialog}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Clear Local Data?</DialogTitle>
+            <DialogTitle>Clear Account Data?</DialogTitle>
             <DialogDescription>
-              This will remove all cached files and temporary data from your device. Your account data will remain safe on the server.
+              This will remove your study history, goals, notifications, achievements, chats, quizzes, flashcards, and uploaded documents. Your account and profile will remain active.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -487,7 +565,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
               Cancel
             </Button>
             <Button onClick={handleClearData} className="bg-yellow-500 hover:bg-yellow-600">
-              Clear Data
+              Clear Account Data
             </Button>
           </DialogFooter>
         </DialogContent>

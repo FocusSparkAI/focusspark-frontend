@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -29,10 +29,14 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import axios from 'axios';
 import { useFocus } from '../../context/FocusContext';
+import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 
 interface SettingsScreenProps {
   onNavigate: (page: string) => void;
+  theme: 'light' | 'dark';
+  onThemeChange: (theme: 'light' | 'dark') => void;
 }
 
 const categories = [
@@ -45,15 +49,18 @@ const categories = [
   { id: 'privacy', label: 'Privacy & Data', icon: Shield },
 ];
 
-export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
+export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScreenProps) {
   const { isDetectionEnabled, setIsDetectionEnabled } = useFocus();
   const [activeCategory, setActiveCategory] = useState('account');
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
 
   // Account settings
-  const [email, setEmail] = useState('alex.chen@example.com');
+  const [email, setEmail] = useState('');
   const [lastLogin, setLastLogin] = useState('October 18, 2025 at 2:30 PM');
   const [googleLinked, setGoogleLinked] = useState(true);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Pomodoro settings
   const [pomodoroWork, setPomodoroWork] = useState(25);
@@ -75,9 +82,6 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
   const [googleDriveConnected, setGoogleDriveConnected] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState(false);
 
-  // Appearance settings
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-
   const handleCategoryChange = (newCategory: string) => {
     const oldIndex = categories.findIndex((c) => c.id === activeCategory);
     const newIndex = categories.findIndex((c) => c.id === newCategory);
@@ -85,8 +89,122 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
     setActiveCategory(newCategory);
   };
 
-  const handleSavePassword = () => {
-    toast.success('✅ Password updated successfully!');
+  const authHeaders = () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.error('Not authenticated');
+      onNavigate('signin');
+      return null;
+    }
+
+    return { Authorization: `Bearer ${token}` };
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    axios
+      .get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((response) => {
+        setEmail(response.data?.email ?? '');
+      })
+      .catch(() => {
+        toast.error('Failed to load account settings');
+      });
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    axios
+      .get(buildBackendUrl(BACKEND_ROUTES.study.settings.get), {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((response) => {
+        const savedTheme =
+          response.data?.appearance?.theme ??
+          (typeof response.data?.dark_mode === 'boolean'
+            ? response.data.dark_mode
+              ? 'dark'
+              : 'light'
+            : null);
+
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+          onThemeChange(savedTheme);
+        }
+      })
+      .catch(() => {
+        // Keep the locally selected theme if backend settings are unavailable.
+      });
+  }, []);
+
+  const handleSavePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Fill all password fields');
+      return;
+    }
+
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+      await axios.patch(
+        buildBackendUrl(BACKEND_ROUTES.auth.changePassword),
+        {
+          current_password: currentPassword,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        },
+        { headers },
+      );
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      toast.success('Password updated successfully.');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to update password';
+      toast.error(message);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+      await axios.delete(buildBackendUrl(BACKEND_ROUTES.profile.delete), { headers });
+      localStorage.removeItem('auth_token');
+      toast.success('Account deleted successfully.');
+      onNavigate('home');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to delete account';
+      toast.error(message);
+    }
+  };
+
+  const handleThemeChange = async (nextTheme: 'light' | 'dark') => {
+    onThemeChange(nextTheme);
+
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+      await axios.put(
+        buildBackendUrl(BACKEND_ROUTES.study.settings.update),
+        {
+          dark_mode: nextTheme === 'dark',
+          appearance: { theme: nextTheme },
+        },
+        { headers },
+      );
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save theme preference';
+      toast.error(message);
+    }
   };
 
   const handleConnectGoogle = () => {
@@ -184,15 +302,50 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
                           id="email"
                           type="email"
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
                           className="mt-2"
+                          readOnly
+                          disabled
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="password">Change Password</Label>
-                        <div className="flex gap-2 mt-2">
-                          <Input id="password" type="password" placeholder="New password" />
+                        <h3 className="mb-3">Change Password</h3>
+                        <div className="grid gap-4">
+                          <div>
+                            <Label htmlFor="current-password">Current Password</Label>
+                            <Input
+                              id="current-password"
+                              type="password"
+                              autoComplete="off"
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                              className="mt-2"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="new-password">New Password</Label>
+                            <Input
+                              id="new-password"
+                              type="password"
+                              autoComplete="new-password"
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              className="mt-2"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="confirm-password">Confirm New Password</Label>
+                            <Input
+                              id="confirm-password"
+                              type="password"
+                              autoComplete="new-password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              className="mt-2"
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-2">
                           <Button onClick={handleSavePassword}>Update</Button>
                         </div>
                       </div>
@@ -550,7 +703,7 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
                     <CardContent className="space-y-6">
                       <div>
                         <Label htmlFor="theme">Theme</Label>
-                        <Select value={theme} onValueChange={(v: any) => setTheme(v)}>
+                        <Select value={theme} onValueChange={(value) => handleThemeChange(value as 'light' | 'dark')}>
                           <SelectTrigger className="mt-2">
                             <SelectValue />
                           </SelectTrigger>
@@ -577,7 +730,7 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
                       <Button
                         variant="outline"
                         className="w-full border-red-500/50 hover:bg-red-500/10 text-red-400"
-                        onClick={() => onNavigate('profile')}
+                        onClick={handleDeleteAccount}
                       >
                         <AlertCircle className="w-4 h-4 mr-2" />
                         Delete Account

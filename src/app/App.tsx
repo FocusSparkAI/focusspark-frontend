@@ -57,6 +57,8 @@ function AppRoutes() {
     applyTheme(newTheme);
   };
 
+  const publicPages = new Set(['home', 'science', 'about', 'contact', 'signin', 'signup', 'forgot-password']);
+
   const handleNavigate = (page: string) => {
     const map: Record<string, string> = {
       home: '/',
@@ -74,6 +76,12 @@ function AppRoutes() {
       settings: '/settings',
       analytics: '/analytics',
     };
+
+    if (!publicPages.has(page) && !localStorage.getItem('auth_token')) {
+      navigate('/signin', { replace: true, state: { fromProtected: true } });
+      return;
+    }
+
     navigate(map[page] || '/');
   };
 
@@ -131,7 +139,7 @@ function AppRoutes() {
         <Route path="/achievements" element={<RequireAuth><AchievementsScreen onNavigate={handleNavigate} /></RequireAuth>} />
         <Route path="/reports" element={<RequireAuth><ReportsAnalytics onNavigate={handleNavigate} /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileScreen onNavigate={handleNavigate} onReplayOnboarding={() => { setHasCompletedOnboarding(false); navigate('/onboarding'); }} /></RequireAuth>} />
-        <Route path="/settings" element={<RequireAuth><SettingsScreen onNavigate={handleNavigate} /></RequireAuth>} />
+        <Route path="/settings" element={<RequireAuth><SettingsScreen onNavigate={handleNavigate} theme={theme} onThemeChange={applyTheme} /></RequireAuth>} />
         <Route path="/analytics" element={<RequireAuth><AnalyticsDashboard onNavigate={handleNavigate} /></RequireAuth>} />
       </Routes>
 

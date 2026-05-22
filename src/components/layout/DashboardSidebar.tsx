@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { cn } from '../../utils/classNames';
 
 interface DashboardSidebarProps {
   collapsed: boolean;
@@ -51,45 +52,49 @@ export function DashboardSidebar({
       className="bg-card border-r border-border flex flex-col sticky top-0 h-screen"
     >
       {/* Header */}
-      <div className="border-b border-border flex items-center justify-between" style={{ padding: collapsed ? 16 : 20 }}>
+      <div
+        className={cn(
+          'relative flex h-20 items-center border-b border-border px-4',
+          collapsed ? 'justify-center' : 'justify-between gap-3 px-6',
+        )}
+      >
         {!collapsed && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex items-center gap-3"
+            className="flex min-w-0 items-center gap-3"
           >
-            <div
-              className="bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-blue-purple"
-              style={{ width: 40, height: 40, borderRadius: 12 }}
-            >
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 glow-blue-purple">
+              <Sparkles className="h-6 w-6 text-white" />
             </div>
-            <div>
-              <span className="block text-xl leading-tight">FocusSpark</span>
-              <span className="text-xs text-secondary">Student workspace</span>
+            <div className="min-w-0">
+              <span className="block truncate text-xl font-semibold leading-tight tracking-normal">FocusSpark</span>
+              <span className="block truncate text-xs text-secondary">Student Workspace</span>
             </div>
           </motion.div>
         )}
-        {collapsed && (
-          <div
-            className="bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-blue-purple mx-auto"
-            style={{ width: 40, height: 40, borderRadius: 12 }}
-            title="FocusSpark"
-          >
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-        )}
         <button
           onClick={onToggleCollapse}
-          className="text-secondary hover:text-primary transition-colors"
-          style={{ marginLeft: collapsed ? 0 : 8 }}
+          className={cn(
+            'flex aspect-square h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-background p-0 text-secondary shadow-sm transition-colors hover:bg-accent hover:text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50',
+            collapsed && 'static',
+          )}
+          style={{
+            minWidth: 36,
+            minHeight: 36,
+            maxWidth: 36,
+            maxHeight: 36,
+            borderRadius: 9999,
+            padding: 0,
+          }}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4" />
           ) : (
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" />
           )}
         </button>
       </div>

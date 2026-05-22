@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { motion } from 'motion/react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -37,6 +38,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFocus } from '../../context/FocusContext';
+import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 
 interface ReportsAnalyticsProps {
   onNavigate: (page: string) => void;
@@ -44,8 +46,10 @@ interface ReportsAnalyticsProps {
 
 export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const { totalFocusedMinutes, focusScore } = useFocus();
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
+  const [timeRange, setTimeRange] = useState<'week' | 'month'>('month');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [backendAnalytics, setBackendAnalytics] = useState<any | null>(null);
+  const [backendSessions, setBackendSessions] = useState<any[]>([]);
 
   // Calendar heatmap data (last 90 days). Dummy data stays stable until backend data is connected.
   const generateHeatmapData = () => {
@@ -69,15 +73,33 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   };
 
   const heatmapData = useMemo(() => generateHeatmapData(), []);
+  const displayedHeatmapData = useMemo(() => {
+    if (!backendSessions.length) return heatmapData;
+
+    const sessionBuckets = new Map<string, { date: string; minutes: number; sessions: number; goals: number }>();
+    backendSessions.forEach((session) => {
+      const rawDate = session?.started_at ?? session?.created_at;
+      if (!rawDate) return;
+
+      const date = new Date(rawDate).toISOString().split('T')[0];
+      const current = sessionBuckets.get(date) ?? { date, minutes: 0, sessions: 0, goals: 0 };
+      current.minutes += Number(session?.actual_duration_minutes ?? session?.planned_duration_minutes ?? 0);
+      current.sessions += session?.completed ? 1 : 0;
+      current.goals += session?.completed ? 1 : 0;
+      sessionBuckets.set(date, current);
+    });
+
+    return heatmapData.map((day) => sessionBuckets.get(day.date) ?? { ...day, minutes: 0, sessions: 0, goals: 0 });
+  }, [backendSessions, heatmapData]);
   const heatmapMonthLabels = useMemo(
     () =>
       [0, 30, 60, 89].map((index) =>
-        new Date(heatmapData[index].date).toLocaleString('en-US', { month: 'short' })
+        new Date(displayedHeatmapData[index].date).toLocaleString('en-US', { month: 'short' })
       ),
-    [heatmapData]
+    [displayedHeatmapData]
   );
   const selectedDayData = selectedDay
-    ? heatmapData.find((d) => d.date === selectedDay)
+    ? displayedHeatmapData.find((d) => d.date === selectedDay)
     : null;
 
   // Chart data
@@ -98,7 +120,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     { week: 'Week 4', focusTime: 650, distractions: 28, accuracy: 91 },
   ];
 
-  const yearlyData = [
+  const yearlyDataFallback = [
     { month: 'Jan', focusTime: 2100, distractions: 180, accuracy: 84 },
     { month: 'Feb', focusTime: 2300, distractions: 160, accuracy: 86 },
     { month: 'Mar', focusTime: 2500, distractions: 145, accuracy: 88 },
@@ -110,9 +132,52 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     { month: 'Sep', focusTime: 2450, distractions: 150, accuracy: 88 },
     { month: 'Oct', focusTime: 2650, distractions: 125, accuracy: 91 },
   ];
+  void yearlyDataFallback;
 
-  const chartData =
-    timeRange === 'week' ? weeklyData : timeRange === 'month' ? monthlyData : yearlyData;
+  const chartData = timeRange === 'week' ? weeklyData : monthlyData;
+  const displayedChartData =
+    timeRange === 'week' && Array.isArray(backendAnalytics?.daily_focus) && backendAnalytics.daily_focus.length
+      ? backendAnalytics.daily_focus.map((item: any) => ({
+          day: item.day,
+          focusTime: Number(item.minutes ?? 0),
+          distractions: Number(item.distractions ?? 0),
+          accuracy: Number(item.focus_score ?? 0),
+        }))
+      : timeRange === 'month' &&
+          Array.isArray(backendAnalytics?.weekly_consistency) &&
+          backendAnalytics.weekly_consistency.length
+        ? backendAnalytics.weekly_consistency.map((item: any) => ({
+            week: item.week,
+            focusTime: Number(item.focus_minutes ?? 0),
+            distractions: 0,
+            accuracy: Number(item.completed_sessions ?? 0),
+          }))
+        : chartData;
+
+  useEffect(() => {
+    const loadReports = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const headers = { Authorization: `Bearer ${token}` };
+
+      try {
+        const [analyticsResponse, sessionsResponse] = await Promise.all([
+          axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.analytics), { headers }),
+          axios.get(buildBackendUrl(BACKEND_ROUTES.study.sessions.history), { headers }),
+        ]);
+
+        setBackendAnalytics(analyticsResponse.data);
+        if (Array.isArray(sessionsResponse.data)) {
+          setBackendSessions(sessionsResponse.data);
+        }
+      } catch (error) {
+        console.warn('Using local reports fallback because backend reports failed.', error);
+      }
+    };
+
+    loadReports();
+  }, []);
 
   const getIntensityColor = (minutes: number) => {
     if (minutes === 0) return 'bg-muted';
@@ -127,20 +192,54 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     setSelectedDay(dayData.date);
   };
 
+  const handleTimeRangeChange = (value: string) => {
+    if (value === 'year') {
+      toast.info('Yearly analytics will be available once yearly backend data is connected.');
+      return;
+    }
+
+    setTimeRange(value as 'week' | 'month');
+  };
+
   const handleExportPDF = () => {
-    toast.success('Preparing PDF report...');
+    toast.success('Opening print dialog. Choose Save as PDF.');
+    window.print();
   };
 
   const handleExportCSV = () => {
-    toast.success('Preparing CSV export...');
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.success('Preparing CSV export...');
+      return;
+    }
+
+    const exportUrl = buildBackendUrl(`${BACKEND_ROUTES.study.export}?format=csv`);
+    axios
+      .get(exportUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob',
+      })
+      .then((response) => {
+        const url = URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'focusspark-study-export.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+        toast.success('CSV export ready');
+      })
+      .catch((error) => {
+        console.warn('CSV export failed.', error);
+        toast.success('Preparing CSV export...');
+      });
   };
 
   // Summary stats
-  const totalFocusMinutes = chartData.reduce((sum, d: any) => sum + d.focusTime, 0);
+  const totalFocusMinutes = displayedChartData.reduce((sum, d: any) => sum + d.focusTime, 0);
   const avgFocusScore = Math.round(
-    chartData.reduce((sum, d: any) => sum + d.accuracy, 0) / chartData.length
+    displayedChartData.reduce((sum, d: any) => sum + d.accuracy, 0) / displayedChartData.length
   );
-  const totalDistractions = chartData.reduce((sum, d: any) => sum + d.distractions, 0);
+  const totalDistractions = displayedChartData.reduce((sum, d: any) => sum + d.distractions, 0);
   const goalsCompleted = 24;
 
   return (
@@ -167,14 +266,14 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
             </div>
 
             {/* Time Range Selector */}
-            <Select value={timeRange} onValueChange={(v: any) => setTimeRange(v)}>
+            <Select value={timeRange} onValueChange={handleTimeRangeChange}>
               <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="week">This Week</SelectItem>
                 <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="year">This Year</SelectItem>
+                <SelectItem value="year">This Year - Soon</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -300,7 +399,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
                         gap: 4,
                       }}
                     >
-                      {heatmapData.map((day, index) => (
+                      {displayedHeatmapData.map((day, index) => (
                         <motion.div
                           key={day.date}
                           initial={{ opacity: 0, scale: 0.8 }}
@@ -369,7 +468,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
+                  <LineChart data={displayedChartData}>
                     <defs>
                       <linearGradient id="colorFocus" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
@@ -422,7 +521,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
+                  <BarChart data={displayedChartData}>
                     <defs>
                       <linearGradient id="colorAccuracy" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
@@ -467,7 +566,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
+                  <BarChart data={displayedChartData}>
                     <defs>
                       <linearGradient id="colorDistraction" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
@@ -516,7 +615,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
+                  <LineChart data={displayedChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis
                       dataKey={

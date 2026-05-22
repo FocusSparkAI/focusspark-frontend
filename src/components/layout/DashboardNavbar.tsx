@@ -6,10 +6,8 @@ import {
   User as UserIcon,
   Settings,
   LogOut,
-  CircleUserRound,
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Avatar, AvatarFallback } from '../ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,32 +25,32 @@ interface DashboardNavbarProps {
 
 export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardNavbarProps) {
   return (
-    <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-xl border-b border-border">
-      <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600">
-            <LayoutDashboard className="h-5 w-5 text-white" />
+    <header className="sticky top-0 z-40 border-b border-border bg-card/85 backdrop-blur-xl">
+      <div className="flex h-20 items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10">
+            <LayoutDashboard className="h-5 w-5 text-blue-500" />
           </div>
-          <div>
-            <h2 className="text-xl leading-tight">Dashboard</h2>
-            <p className="text-xs text-secondary">Overview</p>
+          <div className="min-w-0">
+            <h2 className="truncate text-2xl font-semibold leading-tight tracking-normal">Dashboard</h2>
+            <p className="truncate text-xs text-secondary">Overview</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggleTheme}
             className="rounded-full hover:bg-accent/50"
           >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-full relative hover:bg-accent/50 p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            <DropdownMenuTrigger className="relative rounded-full p-2 transition-colors hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+              <Bell className="h-5 w-5" />
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>Notifications</DropdownMenuLabel>
@@ -75,18 +73,10 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
           </DropdownMenu>
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex h-12 w-12 items-center justify-center rounded-full hover:bg-accent/50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-background">
-              <Avatar
-                className="shrink-0 overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600"
-                style={{ width: 40, height: 40, borderRadius: '9999px' }}
-              >
-                <AvatarFallback
-                  className="flex items-center justify-center bg-transparent text-white"
-                  style={{ width: '100%', height: '100%', borderRadius: '9999px' }}
-                >
-                  <CircleUserRound style={{ width: 22, height: 22 }} />
-                </AvatarFallback>
-              </Avatar>
+            <DropdownMenuTrigger className="rounded-full p-1 transition-colors hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-purple-500/25">
+                <UserIcon className="h-5 w-5 text-white" />
+              </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>

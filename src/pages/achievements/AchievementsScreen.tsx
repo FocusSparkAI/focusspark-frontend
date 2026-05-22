@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
@@ -29,6 +30,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 
 interface Achievement {
   id: string;
@@ -48,156 +50,89 @@ interface AchievementsScreenProps {
   onNavigate: (page: string) => void;
 }
 
+const iconByBadgeName: Record<string, any> = {
+  award: Award,
+  'book-open': BookOpen,
+  brain: Brain,
+  calendar: Calendar,
+  clock: Clock,
+  flame: Flame,
+  star: Star,
+  target: Target,
+  trophy: Trophy,
+  'trending-up': TrendingUp,
+  zap: Zap,
+};
+
+const mapBackendAchievement = (raw: any): Achievement => {
+  const tier = ['bronze', 'silver', 'gold', 'platinum'].includes(raw?.tier)
+    ? raw.tier
+    : 'bronze';
+  const progress = Number(raw?.progress_current ?? 0);
+  const maxProgress = Number(raw?.progress_target ?? raw?.criteria_target ?? 1) || 1;
+
+  return {
+    id: String(raw?.id ?? raw?.key ?? raw?.title),
+    title: raw?.title ?? raw?.achievement_title ?? 'Achievement',
+    description: raw?.description ?? '',
+    icon: iconByBadgeName[String(raw?.badge_icon ?? '').toLowerCase()] ?? Award,
+    unlocked: Boolean(raw?.unlocked),
+    unlockedDate: raw?.unlocked_at ? new Date(raw.unlocked_at) : undefined,
+    progress: Math.min(progress, maxProgress),
+    maxProgress,
+    criteria: raw?.criteria_type
+      ? `${String(raw.criteria_type).replace(/_/g, ' ')}: ${maxProgress}`
+      : raw?.description ?? 'Complete the required activity',
+    reward: raw?.reward,
+    tier,
+  };
+};
+
 export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
   const [showUnlockAnimation, setShowUnlockAnimation] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  const [achievements, setAchievements] = useState<Achievement[]>([
-    {
-      id: '1',
-      title: 'First Step',
-      description: 'Complete your first Pomodoro session',
-      icon: Clock,
-      unlocked: true,
-      unlockedDate: new Date('2025-10-10'),
-      progress: 1,
-      maxProgress: 1,
-      criteria: 'Complete 1 Pomodoro session',
-      reward: 'Blue timer theme unlocked',
-      tier: 'bronze',
-    },
-    {
-      id: '2',
-      title: 'Streak Starter',
-      description: 'Maintain a 7-day study streak',
-      icon: Flame,
-      unlocked: true,
-      unlockedDate: new Date('2025-10-17'),
-      progress: 7,
-      maxProgress: 7,
-      criteria: 'Study for 7 consecutive days',
-      reward: 'Fire avatar border',
-      tier: 'silver',
-    },
-    {
-      id: '3',
-      title: 'Focus Master',
-      description: 'Complete a session with 100% focus',
-      icon: Trophy,
-      unlocked: false,
-      progress: 90,
-      maxProgress: 100,
-      criteria: 'Reach 100% focus in a session',
-      tier: 'gold',
-    },
-    {
-      id: '4',
-      title: 'Session Collector',
-      description: 'Complete 100 focused study blocks',
-      icon: Brain,
-      unlocked: true,
-      unlockedDate: new Date('2025-10-15'),
-      progress: 100,
-      maxProgress: 100,
-      criteria: 'Complete 100 focus blocks',
-      reward: 'Purple gradient theme',
-      tier: 'silver',
-    },
-    {
-      id: '5',
-      title: 'Focus Champion',
-      description: 'Achieve 95%+ focus score for 5 sessions',
-      icon: Target,
-      unlocked: false,
-      progress: 3,
-      maxProgress: 5,
-      criteria: 'Maintain 95%+ focus for 5 sessions',
-      tier: 'gold',
-    },
-    {
-      id: '6',
-      title: 'Early Bird',
-      description: 'Start a study session before 7 AM',
-      icon: Zap,
-      unlocked: false,
-      progress: 0,
-      maxProgress: 1,
-      criteria: 'Study before 7 AM',
-      tier: 'bronze',
-    },
-    {
-      id: '7',
-      title: 'Night Owl',
-      description: 'Study past midnight',
-      icon: Star,
-      unlocked: false,
-      progress: 0,
-      maxProgress: 1,
-      criteria: 'Study after midnight',
-      tier: 'bronze',
-    },
-    {
-      id: '8',
-      title: 'Marathon Runner',
-      description: 'Complete 10 Pomodoros in one day',
-      icon: TrendingUp,
-      unlocked: false,
-      progress: 7,
-      maxProgress: 10,
-      criteria: 'Complete 10 Pomodoros in a single day',
-      tier: 'gold',
-    },
-    {
-      id: '9',
-      title: 'Knowledge Seeker',
-      description: 'Upload 50 study documents',
-      icon: BookOpen,
-      unlocked: false,
-      progress: 12,
-      maxProgress: 50,
-      criteria: 'Upload 50 documents',
-      tier: 'silver',
-    },
-    {
-      id: '10',
-      title: 'Consistency King',
-      description: 'Maintain a 30-day streak',
-      icon: Calendar,
-      unlocked: false,
-      progress: 7,
-      maxProgress: 30,
-      criteria: 'Study for 30 consecutive days',
-      reward: 'Crown avatar icon',
-      tier: 'platinum',
-    },
-    {
-      id: '11',
-      title: 'Perfect Score',
-      description: 'Hit 100% focus accuracy in 10 sessions',
-      icon: Award,
-      unlocked: false,
-      progress: 0,
-      maxProgress: 10,
-      criteria: 'Reach 100% focus accuracy 10 times',
-      tier: 'platinum',
-    },
-    {
-      id: '12',
-      title: 'Momentum Builder',
-      description: 'Complete a focus block in every planned slot',
-      icon: Zap,
-      unlocked: false,
-      progress: 0,
-      maxProgress: 1,
-      criteria: 'Finish every scheduled focus slot',
-      tier: 'gold',
-    },
-  ]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+
+  useEffect(() => {
+    const loadAchievements = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setIsLoading(false);
+        onNavigate('signin');
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setLoadError('');
+        const response = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.achievements.list), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (Array.isArray(response.data)) {
+          setAchievements(response.data.map(mapBackendAchievement));
+        } else {
+          setAchievements([]);
+          setLoadError('Unexpected achievements response from server.');
+        }
+      } catch (error: any) {
+        setAchievements([]);
+        setLoadError(error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Failed to load achievements.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAchievements();
+  }, [onNavigate]);
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const totalCount = achievements.length;
-  const completionPercentage = Math.round((unlockedCount / totalCount) * 100);
+  const completionPercentage = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
 
   const getTierColor = (tier: Achievement['tier']) => {
     switch (tier) {
@@ -317,13 +252,30 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Achievement Grid */}
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          {achievements.map((achievement, index) => {
+        {isLoading ? (
+          <Card className="border-border bg-card shadow-sm">
+            <CardContent className="flex min-h-[220px] items-center justify-center p-8 text-center text-secondary">
+              Loading achievements...
+            </CardContent>
+          </Card>
+        ) : achievements.length === 0 ? (
+          <Card className="border-border bg-card shadow-sm">
+            <CardContent className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-8 text-center">
+              <Award className="h-10 w-10 text-blue-500" />
+              <h2 className="text-xl">No achievements available</h2>
+              <p className="max-w-md text-sm text-secondary">
+                {loadError || 'Your achievements will appear here once the backend returns them.'}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {achievements.map((achievement, index) => {
             const Icon = achievement.icon;
             const isLocked = !achievement.unlocked;
 
@@ -452,8 +404,9 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                 </Card>
               </motion.div>
             );
-          })}
-        </motion.div>
+            })}
+          </motion.div>
+        )}
       </div>
 
       {/* Achievement Detail Modal */}
