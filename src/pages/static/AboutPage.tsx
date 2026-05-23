@@ -1,34 +1,34 @@
 import { motion } from 'motion/react';
-import { Target, Eye, FlaskConical, Code, Briefcase, Palette, Rocket, Microscope } from 'lucide-react';
+import { Target, Eye, FlaskConical, Code, Briefcase, Palette, Rocket, Microscope, FileCode2, Layers3, FileCode, Wrench } from 'lucide-react';
 
 const teamMembers = [
   {
-    name: 'Dr. Alex Chen',
-    title: 'CEO & Co-Founder',
-    bio: 'Neuroscience PhD, Stanford. 10+ years in EdTech.',
-    icon: FlaskConical,
+    name: 'Mohammad Rayan',
+    title: 'Project Lead & Backend Architect',
+    bio: 'Led project architecture and technical decisions. Developed the backend, database, APIs, authentication, and AI integrations.',
+    icon: Code,
     gradient: 'from-blue-500 to-cyan-500',
   },
   {
-    name: 'Sarah Martinez',
-    title: 'CTO & Co-Founder',
-    bio: 'Former Google AI Engineer. ML expert.',
-    icon: Code,
+    name: 'Hamza Naseer',
+    title: 'Product Designer',
+    bio: 'Proposed the project concept and designed the Chrome Extension and Web Dashboard in Figma, shaping the product experience and visual design.',
+    icon: Palette,
+    gradient: 'from-amber-500 to-orange-500',
+  },
+  {
+    name: 'Abdul Wahab Subhani',
+    title: 'System & Integration Engineer',
+    bio: 'Contributed to system design, API integration, technical research, solution prototyping, and troubleshooting.',
+    icon: Wrench,
     gradient: 'from-purple-500 to-pink-500',
   },
   {
-    name: 'James Wilson',
-    title: 'Head of Product',
-    bio: 'Ex-Notion PM. Passionate about student success.',
-    icon: Briefcase,
+    name: 'Abdul Hanan',
+    title: 'Full Stack Developer',
+    bio: 'Contributed to frontend and backend development, implemented new features, resolved technical issues, and improved application stability.',
+    icon: Layers3,
     gradient: 'from-green-500 to-teal-500',
-  },
-  {
-    name: 'Maya Patel',
-    title: 'Lead Designer',
-    bio: 'Award-winning UX designer. Forbes 30 Under 30.',
-    icon: Palette,
-    gradient: 'from-orange-500 to-red-500',
   },
 ];
 
@@ -139,7 +139,7 @@ export function AboutPage() {
                   
                   <h4 className="relative text-xl mb-1">{member.name}</h4>
                   
-                  <p className="relative text-sm text-blue-400 mb-3">{member.title}</p>
+                  <p className="relative text-sm text-blue-500 mb-3">{member.title}</p>
                   
                   <p className="relative text-sm text-muted-foreground">{member.bio}</p>
                 </motion.div>

@@ -22,7 +22,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+
+function resolveAssetUrl(url: string) {
+  if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+  return buildBackendUrl(url);
+}
 
 interface DashboardNavbarProps {
   onNavigate?: (page: string) => void;
@@ -75,8 +81,23 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
   const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [displayName, setDisplayName] = useState('');
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
+
+  const loadProfile = useCallback(async () => {
+    try {
+      const response = await axios.get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
+        headers: getAuthHeaders(),
+      });
+      const data = response.data;
+      setAvatarUrl(resolveAssetUrl(data?.avatar_url ?? data?.avatarUrl ?? ''));
+      setDisplayName(data?.full_name ?? data?.fullName ?? data?.name ?? '');
+    } catch {
+      // Keep placeholder avatar on failure.
+    }
+  }, []);
 
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);
@@ -98,6 +119,28 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
   useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  useEffect(() => {
+    const onProfileUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatarUrl?: string; name?: string }>).detail;
+      if (detail?.avatarUrl !== undefined) {
+        setAvatarUrl(detail.avatarUrl);
+      }
+      if (detail?.name !== undefined) {
+        setDisplayName(detail.name);
+      }
+      if (detail?.avatarUrl === undefined && detail?.name === undefined) {
+        void loadProfile();
+      }
+    };
+
+    window.addEventListener('focusspark:profile-updated', onProfileUpdated);
+    return () => window.removeEventListener('focusspark:profile-updated', onProfileUpdated);
+  }, [loadProfile]);
 
   const markNotificationRead = async (notification: DashboardNotification) => {
     if (notification.read) return;
@@ -264,11 +307,27 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <DropdownMenu>
+          <DropdownMenu
+            onOpenChange={(open) => {
+              if (open) void loadProfile();
+            }}
+          >
             <DropdownMenuTrigger className="rounded-full p-1 transition-colors hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-purple-500/25">
-                <UserIcon className="h-5 w-5 text-white" />
-              </div>
+              <Avatar className="h-10 w-10 shadow-lg shadow-purple-500/25">
+                <AvatarImage src={avatarUrl} alt={displayName || 'Profile'} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                  {displayName ? (
+                    displayName
+                      .split(' ')
+                      .map((part) => part[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()
+                  ) : (
+                    <UserIcon className="h-5 w-5" />
+                  )}
+                </AvatarFallback>
+              </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>

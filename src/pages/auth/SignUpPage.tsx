@@ -130,7 +130,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-8 bg-background relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center px-4 sm:px-6 py-10 sm:py-12 bg-background relative overflow-x-hidden">
       {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(25)].map((_, i) => (
@@ -179,10 +179,9 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="w-full max-w-md relative z-10"
+        className="w-full max-w-sm relative z-10 mx-auto"
       >
-        {/* Glass Card */}
-        <div className="bg-card border border-border rounded-2xl p-5 md:p-7 shadow-2xl">
+        <div className="bg-white dark:bg-card border border-border rounded-2xl p-6 shadow-lg w-full">
           {/* Header */}
           <div className="text-center mb-4">
             <motion.div
@@ -191,7 +190,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
               transition={{ type: 'spring', duration: 0.6 }}
               className="inline-flex items-center gap-2 mb-2"
             >
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-blue-purple">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <Sparkles className="w-7 h-7 text-white" />
               </div>
               <span className="text-lg">FocusSpark</span>
@@ -214,9 +213,9 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Full Name */}
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="fullName"
@@ -244,9 +243,9 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
             </div>
 
             {/* Email */}
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="email"
@@ -274,9 +273,9 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
             </div>
 
             {/* Password */}
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="password"
@@ -299,7 +298,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Use at least 8 characters with one number
               </p>
               {errors.password && (
@@ -314,9 +313,9 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
             </div>
 
             {/* Confirm Password */}
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
@@ -355,9 +354,9 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
             </div>
 
             {/* Academic Focus */}
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="academicFocus">Academic Focus</Label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
                 <Select
                   value={formData.academicFocus}
@@ -394,44 +393,48 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
             </div>
 
             {/* Terms Checkbox */}
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="terms"
-                checked={formData.agreedToTerms}
-                onCheckedChange={(checked) => {
-                  setFormData({ ...formData, agreedToTerms: checked as boolean });
-                  setErrors({ ...errors, agreedToTerms: '' });
-                }}
-                className={errors.agreedToTerms ? 'border-red-500' : ''}
-              />
-              <label htmlFor="terms" className="text-sm text-muted-foreground leading-tight cursor-pointer">
-                I agree to the{' '}
-                <a href="#" className="text-blue-400 hover:text-blue-300">
-                  privacy policy
-                </a>{' '}
-                and{' '}
-                <a href="#" className="text-blue-400 hover:text-blue-300">
-                  terms
-                </a>
-                .
-              </label>
+            <div className="space-y-2">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="terms"
+                  checked={formData.agreedToTerms}
+                  onCheckedChange={(checked) => {
+                    setFormData({ ...formData, agreedToTerms: checked as boolean });
+                    setErrors({ ...errors, agreedToTerms: '' });
+                  }}
+                  className={`mt-0.5 ${errors.agreedToTerms ? 'border-red-500' : ''}`}
+                />
+                <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer">
+                  I agree to the{' '}
+                  <a href="#" className="text-blue-400 hover:text-blue-300">
+                    privacy policy
+                  </a>{' '}
+                  and{' '}
+                  <a href="#" className="text-blue-400 hover:text-blue-300">
+                    terms
+                  </a>
+                  .
+                </label>
+              </div>
+              {errors.agreedToTerms && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-red-500 text-sm"
+                >
+                  {errors.agreedToTerms}
+                </motion.p>
+              )}
             </div>
-            {errors.agreedToTerms && (
-              <motion.p
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-red-500 text-sm"
-              >
-                {errors.agreedToTerms}
-              </motion.p>
-            )}
 
+            {/* Actions */}
+            <div className="space-y-4 pt-2">
             {/* Create Account Button */}
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
               <Button
                 type="submit"
                 disabled={isCreateAccountDisabled}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all py-5 glow-blue-purple mt-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50"
+                className="w-full h-10 bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50"
               >
                 {isLoading ? (
                   <>
@@ -445,19 +448,19 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
             </motion.div>
 
             {/* Divider */}
-            <div className="mt-5 mb-3 flex items-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="h-px flex-1 bg-border" />
               <span className="whitespace-nowrap leading-none">Or continue with</span>
               <div className="h-px flex-1 bg-border" />
             </div>
 
             {/* Google Sign Up */}
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
               <Button
                 type="button"
                 onClick={handleGoogleSignUp}
                 variant="outline"
-                className="w-full bg-white text-black hover:bg-gray-100 border-2 py-5"
+                className="w-full h-10 bg-white text-black hover:bg-gray-100 border-2"
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path
@@ -480,10 +483,11 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
                 Sign up with Google
               </Button>
             </motion.div>
+            </div>
           </form>
 
           {/* Sign In Link */}
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-6 pt-4 border-t border-border text-center text-sm">
             <span className="text-muted-foreground">Already have an account? </span>
             <button
               onClick={() => onNavigate('signin')}

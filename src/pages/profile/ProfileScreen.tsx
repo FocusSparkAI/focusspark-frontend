@@ -74,6 +74,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
   const [bio, setBio] = useState('');
   const [tempBio, setTempBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   const updateProfile = async (updates: Record<string, string>) => {
@@ -280,7 +281,13 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
           headers: { Authorization: `Bearer ${token}` },
         });
         const nextAvatarUrl = response.data?.avatar_url ?? response.data?.avatarUrl ?? '';
-        setAvatarUrl(resolveAssetUrl(nextAvatarUrl));
+        const resolvedAvatarUrl = resolveAssetUrl(nextAvatarUrl);
+        setAvatarUrl(resolvedAvatarUrl);
+        window.dispatchEvent(
+          new CustomEvent('focusspark:profile-updated', {
+            detail: { avatarUrl: resolvedAvatarUrl, name },
+          }),
+        );
         toast.success('Profile picture updated.');
       } catch (err: any) {
         const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to upload avatar';
@@ -288,6 +295,39 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
       }
     };
     input.click();
+  };
+
+  const handleAvatarRemove = async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.error('Not authenticated');
+      onNavigate('signin');
+      return;
+    }
+
+    setIsRemovingAvatar(true);
+
+    try {
+      await axios.delete(buildBackendUrl(BACKEND_ROUTES.profile.avatar), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAvatarUrl('');
+      window.dispatchEvent(
+        new CustomEvent('focusspark:profile-updated', {
+          detail: { avatarUrl: '', name },
+        }),
+      );
+      toast.success('Profile picture removed.');
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to remove profile picture';
+      toast.error(message);
+    } finally {
+      setIsRemovingAvatar(false);
+    }
   };
 
   return (
@@ -357,9 +397,19 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
 
                 <div className="flex-1">
                   <p className="text-sm text-secondary mb-1">Profile Picture</p>
-                  <p className="text-xs text-secondary">
+                  <p className="text-xs text-secondary mb-3">
                     Upload a new profile picture.
                   </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    disabled={!avatarUrl || isRemovingAvatar}
+                    onClick={() => void handleAvatarRemove()}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isRemovingAvatar ? 'Removing...' : 'Remove profile picture'}
+                  </Button>
                 </div>
               </div>
 
