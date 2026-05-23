@@ -160,28 +160,30 @@ export function NotificationsPage({ onNavigate, theme, onToggleTheme }: Notifica
             <motion.section
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6"
+              className="rounded-xl border border-border bg-card p-6 shadow-sm"
             >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1 text-sm text-blue-500">
-                    <Bell className="h-4 w-4" />
-                    Notification center
-                  </div>
-                  <h1 className="text-3xl font-semibold tracking-normal">Notifications</h1>
-                  <p className="mt-2 text-secondary">
-                    Review achievement unlocks, reminders, and important study alerts.
-                  </p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1 text-sm text-blue-500">
+                  <Bell className="h-4 w-4 shrink-0" />
+                  Notification center
                 </div>
 
                 <Button
                   variant="outline"
+                  className="shrink-0"
                   onClick={() => void markAllNotificationsRead()}
                   disabled={unreadCount === 0}
                 >
                   <CheckCheck className="mr-2 h-4 w-4" />
                   Mark all as read
                 </Button>
+              </div>
+
+              <div className="mt-5">
+                <h1 className="text-3xl font-semibold tracking-normal">Notifications</h1>
+                <p className="mt-3 text-sm leading-6 text-secondary sm:text-base">
+                  Review achievement unlocks, reminders, and important study alerts.
+                </p>
               </div>
             </motion.section>
 
