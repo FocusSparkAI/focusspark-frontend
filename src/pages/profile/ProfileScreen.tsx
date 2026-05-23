@@ -454,14 +454,16 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
                   </div>
                 ) : (
                   <div
-                    className="p-4 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors relative group"
+                    className="min-h-16 p-4 pr-12 rounded-lg border border-border bg-input-background dark:bg-muted/60 cursor-pointer hover:bg-muted transition-colors relative group"
                     onClick={() => {
                       setTempBio(bio);
                       setIsEditingBio(true);
                     }}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{bio}</p>
-                    <Edit2 className="w-4 h-4 absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <p className={`text-sm whitespace-pre-wrap ${bio ? '' : 'text-secondary'}`}>
+                      {bio || 'Add a short bio'}
+                    </p>
+                    <Edit2 className="w-4 h-4 absolute top-1/2 right-4 -translate-y-1/2 opacity-70 group-hover:opacity-100 transition-opacity" />
                   </div>
                 )}
               </div>

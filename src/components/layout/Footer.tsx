@@ -78,7 +78,7 @@ export function Footer({ onNavigate }: FooterProps) {
 
         {/* Bottom */}
         <div className="border-t border-border pt-6 text-center text-muted-foreground text-sm">
-          © 2025 FocusSpark. All Rights Reserved.
+          © 2026 FocusSpark. All Rights Reserved.
         </div>
       </div>
     </footer>

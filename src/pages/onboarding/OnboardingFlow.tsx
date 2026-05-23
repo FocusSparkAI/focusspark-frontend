@@ -10,60 +10,69 @@ import {
   Palette,
   Bell,
   CheckCircle2,
-  GraduationCap,
-  Brain,
   Zap,
-  Calendar,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Switch } from '../../components/ui/switch';
-import { Slider } from '../../components/ui/slider';
-import { Checkbox } from '../../components/ui/checkbox';
 
 interface OnboardingFlowProps {
   onComplete: (skipTour?: boolean) => void;
   onThemeChange?: (theme: 'light' | 'dark') => void;
 }
 
+const themeOptions = [
+  { value: 'light', label: 'Light', bg: 'bg-white', text: 'text-black' },
+  { value: 'dark', label: 'Dark', bg: 'bg-gray-900', text: 'text-white' },
+] as const;
+
+const featurePages = [
+  {
+    icon: Target,
+    iconClass: 'text-blue-400',
+    title: 'Dashboard & Progress',
+    description: 'The dashboard gives you a quick view of your study momentum, recent sessions, achievements, and next actions.',
+    points: ['Track study streaks and focus trends', 'Review recent learning activity', 'Jump into reports, analytics, and achievements'],
+  },
+  {
+    icon: Clock,
+    iconClass: 'text-purple-400',
+    title: 'Pomodoro Sessions',
+    description: 'FocusSpark helps you work in focused sessions with clear work and break timing.',
+    points: ['Customize work and break durations in Settings', 'Review session summaries after focused work', 'Keep your timer flow simple and distraction-light'],
+  },
+  {
+    icon: Eye,
+    iconClass: 'text-teal-400',
+    title: 'Focus Detection & Extension',
+    description: 'The frontend and browser extension work together to support attention-aware studying.',
+    points: ['Use camera-based focus detection when enabled', 'Keep privacy visible with local-first focus messaging', 'Let the extension support study flow while you browse'],
+  },
+];
+
+const supportPages = [
+  {
+    icon: Bell,
+    iconClass: 'text-yellow-400',
+    title: 'Notifications & Reminders',
+    description: 'Notifications help you remember breaks, refocus moments, and session completions without cluttering onboarding with setup.',
+    points: ['Tune reminders later in Settings', 'Preview notification behavior from the app', 'Keep study nudges lightweight'],
+  },
+  {
+    icon: Zap,
+    iconClass: 'text-pink-400',
+    title: 'Reports, Analytics & Tools',
+    description: 'After onboarding, you can explore analytics, reports, profile controls, and account settings from the main app.',
+    points: ['Compare focus patterns over time', 'Manage profile and privacy choices', 'Use settings as the place for real preferences'],
+  },
+];
+
 export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({
-    studyGoals: [] as string[],
-    weeklyTargetHours: 20,
-    pomodoroPreset: '25/5',
-    customPomodoro: 25,
-    skipBreaks: false,
-    sessionReview: true,
-    focusDetection: false,
-    theme: (localStorage.getItem('focusspark-theme') as 'light' | 'dark' | null) || 'light',
-    fontSize: 16,
-    desktopNotifications: true,
-    googleCalendar: false,
-    connectDrive: false,
-  });
+  const [selectedTheme, setSelectedTheme] = useState<'light' | 'dark'>(
+    (localStorage.getItem('focusspark-theme') as 'light' | 'dark' | null) || 'light',
+  );
   const [showConfetti, setShowConfetti] = useState(false);
 
-  const totalSteps = 7;
-
-  const studyGoalOptions = [
-    { id: 'exam', label: 'Exam Prep', icon: GraduationCap },
-    { id: 'daily', label: 'Daily Study', icon: Brain },
-    { id: 'deep', label: 'Deep Work', icon: Zap },
-    { id: 'custom', label: 'Custom', icon: Target },
-  ];
-
-  const pomodoroPresets = [
-    { value: '25/5', label: '25 min / 5 min break' },
-    { value: '50/10', label: '50 min / 10 min break' },
-    { value: 'custom', label: 'Custom' },
-  ];
-
-  const themeOptions = [
-    { value: 'light', label: 'Light', bg: 'bg-white', text: 'text-black' },
-    { value: 'dark', label: 'Dark', bg: 'bg-gray-900', text: 'text-white' },
-  ];
+  const totalSteps = 8;
 
   const handleNext = () => {
     if (currentStep === totalSteps - 1) {
@@ -81,17 +90,8 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
   };
 
   const handleThemeSelect = (theme: 'light' | 'dark') => {
-    setFormData({ ...formData, theme });
+    setSelectedTheme(theme);
     onThemeChange?.(theme);
-  };
-
-  const toggleGoal = (goalId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      studyGoals: prev.studyGoals.includes(goalId)
-        ? prev.studyGoals.filter((g) => g !== goalId)
-        : [...prev.studyGoals, goalId],
-    }));
   };
 
   const slideVariants = {
@@ -100,9 +100,31 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
     exit: { x: -300, opacity: 0 },
   };
 
+  const renderFeaturePage = (page: (typeof featurePages)[number] | (typeof supportPages)[number]) => {
+    const Icon = page.icon;
+
+    return (
+      <div className="glass-card rounded-3xl p-12">
+        <div className="flex items-center gap-3 mb-6">
+          <Icon className={`w-8 h-8 ${page.iconClass}`} />
+          <h2 className="text-3xl">{page.title}</h2>
+        </div>
+        <p className="text-secondary mb-8">{page.description}</p>
+
+        <div className="space-y-4">
+          {page.points.map((point) => (
+            <div key={point} className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border">
+              <CheckCircle2 className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
+              <p className="text-sm text-secondary">{point}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 gradient-wave relative overflow-hidden">
-      {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(30)].map((_, i) => (
           <motion.div
@@ -126,7 +148,6 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
         ))}
       </div>
 
-      {/* Confetti */}
       {showConfetti && (
         <div className="absolute inset-0 pointer-events-none z-50">
           {[...Array(100)].map((_, i) => (
@@ -146,7 +167,6 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
         </div>
       )}
 
-      {/* Progress Dots */}
       <div className="flex gap-2 mb-8 z-10">
         {[...Array(totalSteps)].map((_, i) => (
           <motion.div
@@ -163,7 +183,6 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
         ))}
       </div>
 
-      {/* Content Container */}
       <div className="w-full max-w-2xl relative z-10">
         <AnimatePresence mode="wait">
           <motion.div
@@ -174,7 +193,6 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
             exit="exit"
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-            {/* Step 0: Welcome */}
             {currentStep === 0 && (
               <div className="glass-card rounded-3xl p-12 text-center">
                 <motion.div
@@ -190,350 +208,66 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
 
                 <h1 className="text-4xl mb-4">Welcome to FocusSpark</h1>
                 <p className="text-xl text-secondary mb-8">
-                  Your AI-powered study partner for focus, learning, and growth.
+                  A quick tour of the app, the study flow, and the extension.
                 </p>
 
-                {/* Animated Illustration */}
-                <motion.div
-                  className="w-48 h-48 mx-auto mb-8 relative"
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                >
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20 flex items-center justify-center">
-                    <Brain className="w-24 h-24 text-blue-400" />
+                <div className="grid gap-3 text-left">
+                  <div className="p-4 rounded-xl bg-card border border-border">
+                    <p className="text-sm text-secondary">See what the dashboard, study tools, and reports are for.</p>
                   </div>
-                  <motion.div
-                    className="absolute inset-0 rounded-full border-4 border-blue-500/30"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                </motion.div>
+                  <div className="p-4 rounded-xl bg-card border border-border">
+                    <p className="text-sm text-secondary">Choose a theme now, then adjust real preferences later in Settings.</p>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Step 1: Study Goals */}
             {currentStep === 1 && (
               <div className="glass-card rounded-3xl p-12">
                 <div className="flex items-center gap-3 mb-6">
-                  <Target className="w-8 h-8 text-blue-400" />
-                  <h2 className="text-3xl">Set Your Study Goals</h2>
+                  <Palette className="w-8 h-8 text-blue-400" />
+                  <h2 className="text-3xl">Choose Your Theme</h2>
                 </div>
-                <p className="text-secondary mb-8">Choose what drives your study sessions.</p>
+                <p className="text-secondary mb-8">
+                  This is the only choice in onboarding. Everything else can be adjusted later in Settings.
+                </p>
 
-                {/* Goal Cards Grid */}
                 <div className="grid grid-cols-2 gap-4 mb-8">
-                  {studyGoalOptions.map((goal) => {
-                    const Icon = goal.icon;
-                    const isSelected = formData.studyGoals.includes(goal.id);
+                  {themeOptions.map((theme) => {
+                    const isSelected = selectedTheme === theme.value;
+
                     return (
                       <motion.button
-                        key={goal.id}
-                        onClick={() => toggleGoal(goal.id)}
+                        key={theme.value}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => handleThemeSelect(theme.value)}
                         className={`relative p-6 rounded-2xl border-2 transition-all ${
                           isSelected
-                            ? 'border-blue-500 bg-blue-500/10'
-                            : 'border-border hover:border-blue-500/50 bg-card'
+                            ? 'border-blue-500 ring-2 ring-blue-500/50'
+                            : 'border-border hover:border-blue-500/50'
                         }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <Icon className={`w-10 h-10 mb-3 ${isSelected ? 'text-blue-400' : 'text-secondary'}`} />
-                        <p className={isSelected ? 'text-primary' : 'text-secondary'}>{goal.label}</p>
-                        {isSelected && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="absolute top-2 right-2"
-                          >
-                            <CheckCircle2 className="w-6 h-6 text-blue-400" />
-                          </motion.div>
-                        )}
-                        {isSelected && (
-                          <motion.div
-                            className="absolute inset-0 rounded-2xl bg-blue-500/20"
-                            initial={{ scale: 0, opacity: 1 }}
-                            animate={{ scale: 2, opacity: 0 }}
-                            transition={{ duration: 0.5 }}
-                          />
-                        )}
+                        <div className={`w-full h-24 rounded-xl mb-3 ${theme.bg} ${theme.text} flex items-center justify-center`}>
+                          Aa
+                        </div>
+                        <p className="text-sm">{theme.label}</p>
                       </motion.button>
                     );
                   })}
                 </div>
-
-                {/* Weekly Target */}
-                <div>
-                  <Label>Weekly Target Hours: {formData.weeklyTargetHours}h</Label>
-                  <Slider
-                    value={[formData.weeklyTargetHours]}
-                    onValueChange={([value]) =>
-                      setFormData({ ...formData, weeklyTargetHours: value })
-                    }
-                    min={5}
-                    max={60}
-                    step={5}
-                    className="mt-3"
-                  />
-                </div>
               </div>
             )}
 
-            {/* Step 2: Pomodoro Settings */}
-            {currentStep === 2 && (
-              <div className="glass-card rounded-3xl p-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <Clock className="w-8 h-8 text-purple-400" />
-                  <h2 className="text-3xl">Pomodoro & Session Settings</h2>
-                </div>
-                <p className="text-secondary mb-8">Customize your focus intervals.</p>
+            {currentStep >= 2 && currentStep <= 4 && renderFeaturePage(featurePages[currentStep - 2])}
 
-                {/* Presets */}
-                <div className="space-y-3 mb-8">
-                  {pomodoroPresets.map((preset) => (
-                    <motion.button
-                      key={preset.value}
-                      onClick={() => setFormData({ ...formData, pomodoroPreset: preset.value })}
-                      className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                        formData.pomodoroPreset === preset.value
-                          ? 'border-purple-500 bg-purple-500/10'
-                          : 'border-border hover:border-purple-500/50 bg-card'
-                      }`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {preset.label}
-                    </motion.button>
-                  ))}
-                </div>
+            {currentStep === 5 && renderFeaturePage(supportPages[0])}
 
-                {/* Custom Slider */}
-                {formData.pomodoroPreset === 'custom' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="mb-8"
-                  >
-                    <Label>Custom Duration: {formData.customPomodoro} minutes</Label>
-                    <Slider
-                      value={[formData.customPomodoro]}
-                      onValueChange={([value]) =>
-                        setFormData({ ...formData, customPomodoro: value })
-                      }
-                      min={15}
-                      max={90}
-                      step={5}
-                      className="mt-3"
-                    />
-                  </motion.div>
-                )}
+            {currentStep === 6 && renderFeaturePage(supportPages[1])}
 
-                {/* Toggles */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-border">
-                    <div>
-                      <Label>Skip Breaks</Label>
-                      <p className="text-sm text-secondary">Continue to next session automatically</p>
-                    </div>
-                    <Switch
-                      checked={formData.skipBreaks}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, skipBreaks: checked })
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-border">
-                    <div>
-                      <Label>Auto Review After Session</Label>
-                      <p className="text-sm text-secondary">Test your knowledge after focus time</p>
-                    </div>
-                    <Switch
-                      checked={formData.sessionReview}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, sessionReview: checked })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Focus Detection */}
-            {currentStep === 3 && (
-              <div className="glass-card rounded-3xl p-12">
-                <div className="grid md:grid-cols-2 gap-8 items-center">
-                  <div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <Eye className="w-8 h-8 text-teal-400" />
-                      <h2 className="text-3xl">Focus Detection & Privacy</h2>
-                    </div>
-                    <p className="text-secondary mb-6">
-                      Enable Camera-Based Focus Detection?
-                    </p>
-                    <p className="text-sm text-secondary mb-6">
-                      We never store your face data — only real-time focus scores.
-                    </p>
-
-                    <div className="flex items-center justify-between p-6 rounded-xl bg-card border-2 border-border">
-                      <Label>Enable Focus Detection</Label>
-                      <Switch
-                        checked={formData.focusDetection}
-                        onCheckedChange={(checked) =>
-                          setFormData({ ...formData, focusDetection: checked })
-                        }
-                        className={formData.focusDetection ? 'data-[state=checked]:bg-teal-500' : ''}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Illustration */}
-                  <motion.div
-                    className="relative"
-                    animate={{ y: [0, -10, 0] }}
-                    transition={{ duration: 3, repeat: Infinity }}
-                  >
-                    <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-teal-500/20 to-blue-500/20 flex items-center justify-center">
-                      <Eye className="w-32 h-32 text-teal-400" />
-                    </div>
-                    <motion.div
-                      className="absolute inset-0 rounded-2xl border-4 border-teal-500/30"
-                      animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                  </motion.div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Theme & Accessibility */}
-            {currentStep === 4 && (
-              <div className="glass-card rounded-3xl p-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <Palette className="w-8 h-8 text-blue-400" />
-                  <h2 className="text-3xl">Theme & Accessibility</h2>
-                </div>
-                <p className="text-secondary mb-8">Choose the look that works best for you.</p>
-
-                {/* Theme Cards */}
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  {themeOptions.map((theme) => (
-                    <motion.button
-                      key={theme.value}
-                      onClick={() => handleThemeSelect(theme.value as 'light' | 'dark')}
-                      className={`p-6 rounded-2xl border-2 transition-all ${
-                        formData.theme === theme.value
-                          ? 'border-blue-500 ring-2 ring-blue-500/50'
-                          : 'border-border hover:border-blue-500/50'
-                      }`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <div className={`w-full h-24 rounded-xl mb-3 ${theme.bg} ${theme.text} flex items-center justify-center`}>
-                        Aa
-                      </div>
-                      <p className="text-sm">{theme.label}</p>
-                    </motion.button>
-                  ))}
-                </div>
-
-                {/* Font Size */}
-                <div>
-                  <Label>Font Size: {formData.fontSize}px</Label>
-                  <div className="mt-3 p-4 rounded-xl bg-card border border-border">
-                    <p style={{ fontSize: `${formData.fontSize}px` }}>
-                      The quick brown fox jumps over the lazy dog.
-                    </p>
-                  </div>
-                  <Slider
-                    value={[formData.fontSize]}
-                    onValueChange={([value]) => setFormData({ ...formData, fontSize: value })}
-                    min={12}
-                    max={24}
-                    step={1}
-                    className="mt-3"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Notifications */}
-            {currentStep === 5 && (
-              <div className="glass-card rounded-3xl p-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <Bell className="w-8 h-8 text-yellow-400" />
-                  <h2 className="text-3xl">Notifications & Integrations</h2>
-                </div>
-                <p className="text-secondary mb-8">Stay connected with your study ecosystem.</p>
-
-                <div className="space-y-4">
-                  <motion.div
-                    className="flex items-start gap-4 p-6 rounded-xl bg-card border border-border"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <Checkbox
-                      id="notifications"
-                      checked={formData.desktopNotifications}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, desktopNotifications: checked as boolean })
-                      }
-                    />
-                    <div className="flex-1">
-                      <label htmlFor="notifications" className="cursor-pointer">
-                        <p className="mb-1">Enable Desktop Notifications</p>
-                        <p className="text-sm text-secondary">
-                          Get reminded about breaks and session completions
-                        </p>
-                      </label>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    className="flex items-start gap-4 p-6 rounded-xl bg-card border border-border"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <Checkbox
-                      id="calendar"
-                      checked={formData.googleCalendar}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, googleCalendar: checked as boolean })
-                      }
-                    />
-                    <div className="flex-1">
-                      <label htmlFor="calendar" className="cursor-pointer">
-                        <Calendar className="w-5 h-5 inline mr-2 text-blue-400" />
-                        <span>Google Calendar Sync</span>
-                        <p className="text-sm text-secondary mt-1">
-                          Automatically block study time in your calendar
-                        </p>
-                      </label>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    className="flex items-start gap-4 p-6 rounded-xl bg-card border border-border"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <Checkbox
-                      id="drive"
-                      checked={formData.connectDrive}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, connectDrive: checked as boolean })
-                      }
-                    />
-                    <div className="flex-1">
-                      <label htmlFor="drive" className="cursor-pointer">
-                        <p className="mb-1">Connect Google Drive</p>
-                        <p className="text-sm text-secondary">
-                          Upload and sync study materials automatically
-                        </p>
-                      </label>
-                    </div>
-                  </motion.div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 6: Completion */}
-            {currentStep === 6 && (
+            {currentStep === 7 && (
               <div className="glass-card rounded-3xl p-12 text-center">
                 <motion.div
                   initial={{ scale: 0 }}
@@ -547,8 +281,8 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
                 </motion.div>
 
                 <h1 className="text-5xl mb-4">All Set!</h1>
-                <p className="text-xl text-secondary mb-12">
-                  You're ready to start your focused learning journey with FocusSpark.
+                <p className="text-xl text-secondary mb-8">
+                  You can explore reports, analytics, profile controls, and settings from the dashboard.
                 </p>
 
                 <div className="flex justify-center">
@@ -565,18 +299,27 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation Buttons */}
         {currentStep < totalSteps - 1 && (
           <div className="flex justify-between mt-8">
-            <Button
-              variant="ghost"
-              onClick={handleBack}
-              disabled={currentStep === 0}
-              className="hover:bg-white/10"
-            >
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              Back
-            </Button>
+            {currentStep === 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onComplete(true)}
+                className="hover:bg-white/10"
+              >
+                Skip tour
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                onClick={handleBack}
+                className="hover:bg-white/10"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Back
+              </Button>
+            )}
             <Button
               onClick={handleNext}
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 glow-blue-purple"

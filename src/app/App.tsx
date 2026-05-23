@@ -19,6 +19,7 @@ import { ReportsAnalytics } from '../pages/reports/ReportsAnalytics';
 import { ProfileScreen } from '../pages/profile/ProfileScreen';
 import { SettingsScreen } from '../pages/settings/SettingsScreen';
 import { AnalyticsDashboard } from '../pages/analytics/AnalyticsDashboard';
+import { NotificationsPage } from '../pages/notifications/NotificationsPage';
 import { Footer } from '../components/layout/Footer';
 import { Toaster } from '../components/ui/sonner';
 import { FocusProvider } from '../context/FocusContext';
@@ -75,6 +76,7 @@ function AppRoutes() {
       profile: '/profile',
       settings: '/settings',
       analytics: '/analytics',
+      notifications: '/notifications',
     };
 
     if (!publicPages.has(page) && !localStorage.getItem('auth_token')) {
@@ -108,6 +110,7 @@ function AppRoutes() {
     '/profile',
     '/settings',
     '/analytics',
+    '/notifications',
   ].includes(path);
 
   useEffect(() => window.scrollTo({ top: 0, behavior: 'smooth' }), [location.pathname]);
@@ -141,6 +144,8 @@ function AppRoutes() {
         <Route path="/profile" element={<RequireAuth><ProfileScreen onNavigate={handleNavigate} onReplayOnboarding={() => { setHasCompletedOnboarding(false); navigate('/onboarding'); }} /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><SettingsScreen onNavigate={handleNavigate} theme={theme} onThemeChange={applyTheme} /></RequireAuth>} />
         <Route path="/analytics" element={<RequireAuth><AnalyticsDashboard onNavigate={handleNavigate} /></RequireAuth>} />
+        <Route path="/notifications" element={<RequireAuth><NotificationsPage onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} /></RequireAuth>} />
+        <Route path="*" element={<RequireAuth><Navigate to="/dashboard" replace /></RequireAuth>} />
       </Routes>
 
       {!isSpecialPage && <Footer onNavigate={handleNavigate} />}

@@ -52,6 +52,7 @@ export const BACKEND_ROUTES = {
     notifications: {
       list: '/study/notifications',
       update: (notificationId: number) => `/study/notifications/${notificationId}`,
+      readAll: '/study/notifications/read-all',
     },
     settings: {
       get: '/study/settings',

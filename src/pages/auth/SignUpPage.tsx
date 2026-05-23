@@ -130,7 +130,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-20 bg-background relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-6 py-8 bg-background relative overflow-hidden">
       {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(25)].map((_, i) => (
@@ -182,32 +182,31 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
         className="w-full max-w-md relative z-10"
       >
         {/* Glass Card */}
-        <div className="bg-card border border-border rounded-2xl p-8 md:p-10 shadow-2xl">
+        <div className="bg-card border border-border rounded-2xl p-5 md:p-7 shadow-2xl">
           {/* Header */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-4">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', duration: 0.6 }}
-              className="inline-flex items-center gap-2 mb-4"
+              className="inline-flex items-center gap-2 mb-2"
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-blue-purple">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-blue-purple">
                 <Sparkles className="w-7 h-7 text-white" />
               </div>
-              <span className="text-2xl">FocusSpark</span>
+              <span className="text-lg">FocusSpark</span>
             </motion.div>
 
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="text-base"
+              className="text-sm"
             >
               You're one step away from smarter learning.
-              <br />
-              <span className="flex items-center justify-center gap-2 mt-2">
+              <span className="flex items-center justify-center gap-2 mt-1">
                 Let's personalize your FocusSpark journey
-                <Rocket className="w-5 h-5 text-blue-400" />
+                <Rocket className="w-4 h-4 text-blue-400" />
               </span>
             </motion.p>
           </div>
@@ -432,7 +431,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
               <Button
                 type="submit"
                 disabled={isCreateAccountDisabled}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all py-6 glow-blue-purple mt-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50"
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all py-5 glow-blue-purple mt-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50"
               >
                 {isLoading ? (
                   <>
@@ -446,13 +445,10 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
             </motion.div>
 
             {/* Divider */}
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-card text-muted-foreground">or</span>
-              </div>
+            <div className="mt-5 mb-3 flex items-center gap-6 text-sm text-muted-foreground">
+              <div className="h-px flex-1 bg-border" />
+              <span className="whitespace-nowrap leading-none">Or continue with</span>
+              <div className="h-px flex-1 bg-border" />
             </div>
 
             {/* Google Sign Up */}
@@ -461,7 +457,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
                 type="button"
                 onClick={handleGoogleSignUp}
                 variant="outline"
-                className="w-full bg-white text-black hover:bg-gray-100 border-2 py-6"
+                className="w-full bg-white text-black hover:bg-gray-100 border-2 py-5"
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path
@@ -487,7 +483,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
           </form>
 
           {/* Sign In Link */}
-          <div className="mt-6 text-center text-sm">
+          <div className="mt-4 text-center text-sm">
             <span className="text-muted-foreground">Already have an account? </span>
             <button
               onClick={() => onNavigate('signin')}
@@ -499,7 +495,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
         </div>
 
         {/* Back to Home */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-3">
           <button
             onClick={() => onNavigate('home')}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -509,8 +505,8 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-muted-foreground text-xs mt-6 opacity-60">
-          © 2025 FocusSpark. All rights reserved.
+        <p className="text-center text-muted-foreground text-xs mt-3 opacity-60">
+          © 2026 FocusSpark. All rights reserved.
         </p>
       </motion.div>
     </div>

@@ -107,7 +107,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-20 bg-background relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12 bg-background relative overflow-hidden">
       {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
@@ -138,16 +138,16 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
         className="w-full max-w-md relative z-10"
       >
         {/* Glass Card */}
-        <div className="bg-card border border-border rounded-2xl p-8 md:p-10 shadow-2xl">
+        <div className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-2xl">
           {/* Header */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="inline-block mb-4"
+              className="inline-block mb-3"
             >
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-blue-purple">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-blue-purple">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
             </motion.div>
@@ -159,7 +159,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
           </div>
 
           {/* Sign In Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
               <Label htmlFor="email">Email</Label>
@@ -251,13 +251,10 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
           </form>
 
           {/* Divider */}
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-card text-muted-foreground">Or continue with</span>
-            </div>
+          <div className="mt-8 mb-4 flex items-center gap-6 text-sm text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            <span className="whitespace-nowrap leading-none">Or continue with</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
 
           {/* Google Sign In */}
@@ -265,7 +262,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
             type="button"
             variant="outline"
             onClick={handleGoogleSignIn}
-            className="w-full bg-white text-black hover:bg-gray-100 border-2 py-6"
+            className="w-full bg-white text-black hover:bg-gray-100 border-2 py-5"
             size="lg"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -290,7 +287,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
           </Button>
 
           {/* Sign Up Link */}
-          <p className="mt-8 text-center text-sm text-muted-foreground">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
             <button
               onClick={() => onNavigate('signup')}
@@ -302,7 +299,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
         </div>
 
         {/* Back to Home */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-4">
           <button
             onClick={() => onNavigate('home')}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"

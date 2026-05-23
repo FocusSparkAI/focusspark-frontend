@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Trophy,
   BarChart3,
+  Bell,
   Settings,
   User,
   LogOut,
@@ -34,6 +35,7 @@ const menuItems: DashboardMenuItem[] = [
   { id: 'achievements', label: 'Achievements', icon: Trophy },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'profile', label: 'Profile', icon: User },
 ];

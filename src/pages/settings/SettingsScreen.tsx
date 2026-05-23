@@ -14,18 +14,15 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { Separator } from '../../components/ui/separator';
-import { Badge } from '../../components/ui/badge';
 import {
   Home,
   User,
   Clock,
   Camera,
   Bell,
-  Plug,
   Palette,
   Shield,
   ChevronRight,
-  Check,
   AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -44,10 +41,26 @@ const categories = [
   { id: 'pomodoro', label: 'Pomodoro & Session', icon: Clock },
   { id: 'focus', label: 'Focus Detection', icon: Camera },
   { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'integrations', label: 'Integrations', icon: Plug },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'privacy', label: 'Privacy & Data', icon: Shield },
 ];
+
+const themeOptions = [
+  { value: 'light', label: 'Light', bg: 'bg-white', text: 'text-black' },
+  { value: 'dark', label: 'Dark', bg: 'bg-gray-900', text: 'text-white' },
+] as const;
+
+const formatLastLogin = (value: unknown) => {
+  if (!value) return '';
+
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+};
 
 export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScreenProps) {
   const { isDetectionEnabled, setIsDetectionEnabled } = useFocus();
@@ -56,8 +69,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
 
   // Account settings
   const [email, setEmail] = useState('');
-  const [lastLogin, setLastLogin] = useState('October 18, 2025 at 2:30 PM');
-  const [googleLinked, setGoogleLinked] = useState(true);
+  const [lastLogin, setLastLogin] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -65,6 +77,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
   // Pomodoro settings
   const [pomodoroWork, setPomodoroWork] = useState(25);
   const [pomodoroBreak, setPomodoroBreak] = useState(5);
+  const [savedPomodoroWork, setSavedPomodoroWork] = useState(25);
+  const [savedPomodoroBreak, setSavedPomodoroBreak] = useState(5);
   const [autoStartNext, setAutoStartNext] = useState(true);
   const [skipBreaks, setSkipBreaks] = useState(false);
   const [reviewOnFinish, setReviewOnFinish] = useState(true);
@@ -77,10 +91,6 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
   const [desktopNotifications, setDesktopNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [reminderInterval, setReminderInterval] = useState(30);
-
-  // Integration settings
-  const [googleDriveConnected, setGoogleDriveConnected] = useState(false);
-  const [calendarConnected, setCalendarConnected] = useState(false);
 
   const handleCategoryChange = (newCategory: string) => {
     const oldIndex = categories.findIndex((c) => c.id === activeCategory);
@@ -109,7 +119,18 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {
-        setEmail(response.data?.email ?? '');
+        const data = response.data;
+        setEmail(data?.email ?? '');
+        setLastLogin(
+          formatLastLogin(
+            data?.last_login ??
+              data?.lastLogin ??
+              data?.previous_login ??
+              data?.previousLogin ??
+              data?.last_login_at ??
+              data?.lastLoginAt,
+          ),
+        );
       })
       .catch(() => {
         toast.error('Failed to load account settings');
@@ -135,6 +156,27 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
 
         if (savedTheme === 'light' || savedTheme === 'dark') {
           onThemeChange(savedTheme);
+        }
+
+        const savedPomodoro = response.data?.pomodoro;
+        if (savedPomodoro) {
+          const workMinutes = Number(savedPomodoro.work_minutes ?? savedPomodoro.workMinutes);
+          const breakMinutes = Number(savedPomodoro.break_minutes ?? savedPomodoro.breakMinutes);
+
+          if (Number.isFinite(workMinutes) && workMinutes > 0) {
+            setPomodoroWork(workMinutes);
+            setSavedPomodoroWork(workMinutes);
+          }
+          if (Number.isFinite(breakMinutes) && breakMinutes > 0) {
+            setPomodoroBreak(breakMinutes);
+            setSavedPomodoroBreak(breakMinutes);
+          }
+          if (typeof savedPomodoro.auto_start_next === 'boolean') setAutoStartNext(savedPomodoro.auto_start_next);
+          if (typeof savedPomodoro.autoStartNext === 'boolean') setAutoStartNext(savedPomodoro.autoStartNext);
+          if (typeof savedPomodoro.skip_breaks === 'boolean') setSkipBreaks(savedPomodoro.skip_breaks);
+          if (typeof savedPomodoro.skipBreaks === 'boolean') setSkipBreaks(savedPomodoro.skipBreaks);
+          if (typeof savedPomodoro.review_on_finish === 'boolean') setReviewOnFinish(savedPomodoro.review_on_finish);
+          if (typeof savedPomodoro.reviewOnFinish === 'boolean') setReviewOnFinish(savedPomodoro.reviewOnFinish);
         }
       })
       .catch(() => {
@@ -207,12 +249,41 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
     }
   };
 
-  const handleConnectGoogle = () => {
-    toast.success('🔗 Connecting to Google Drive...');
-    setTimeout(() => {
-      setGoogleDriveConnected(true);
-      toast.success('✅ Google Drive connected!');
-    }, 1500);
+  const handleSavePomodoroSettings = async () => {
+    if (!Number.isFinite(pomodoroWork) || pomodoroWork < 1 || pomodoroWork > 180) {
+      toast.error('Work duration must be between 1 and 180 minutes');
+      return;
+    }
+
+    if (!Number.isFinite(pomodoroBreak) || pomodoroBreak < 1 || pomodoroBreak > 60) {
+      toast.error('Break duration must be between 1 and 60 minutes');
+      return;
+    }
+
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+      await axios.put(
+        buildBackendUrl(BACKEND_ROUTES.study.settings.update),
+        {
+          pomodoro: {
+            work_minutes: pomodoroWork,
+            break_minutes: pomodoroBreak,
+            auto_start_next: autoStartNext,
+            skip_breaks: skipBreaks,
+            review_on_finish: reviewOnFinish,
+          },
+        },
+        { headers },
+      );
+      setSavedPomodoroWork(pomodoroWork);
+      setSavedPomodoroBreak(pomodoroBreak);
+      toast.success('Pomodoro timings saved.');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save Pomodoro settings';
+      toast.error(message);
+    }
   };
 
   return (
@@ -350,42 +421,17 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                         </div>
                       </div>
 
-                      <Separator />
+                      {lastLogin && (
+                        <>
+                          <Separator />
 
-                      <div>
-                        <h3 className="mb-3">Linked Logins</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center">
-                                <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-                                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className="text-sm">Google</p>
-                                <p className="text-xs text-secondary">
-                                  {googleLinked ? 'Connected' : 'Not connected'}
-                                </p>
-                              </div>
-                            </div>
-                            <Badge variant={googleLinked ? 'default' : 'secondary'}>
-                              {googleLinked ? 'Linked' : 'Unlinked'}
-                            </Badge>
+                          <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                            <p className="text-sm text-secondary">
+                              <strong>Last Login:</strong> {lastLogin}
+                            </p>
                           </div>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                        <p className="text-sm text-secondary">
-                          <strong>Last Login:</strong> {lastLogin}
-                        </p>
-                      </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -406,8 +452,10 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                           <Input
                             id="work-duration"
                             type="number"
+                            min={1}
+                            max={180}
                             value={pomodoroWork}
-                            onChange={(e) => setPomodoroWork(parseInt(e.target.value))}
+                            onChange={(e) => setPomodoroWork(Number(e.target.value))}
                             className="mt-2"
                           />
                         </div>
@@ -416,11 +464,19 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                           <Input
                             id="break-duration"
                             type="number"
+                            min={1}
+                            max={60}
                             value={pomodoroBreak}
-                            onChange={(e) => setPomodoroBreak(parseInt(e.target.value))}
+                            onChange={(e) => setPomodoroBreak(Number(e.target.value))}
                             className="mt-2"
                           />
                         </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button onClick={handleSavePomodoroSettings}>
+                          Save timings
+                        </Button>
                       </div>
 
                       <Separator />
@@ -465,14 +521,14 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                         <div className="flex items-center justify-center gap-4">
                           <div className="text-center">
                             <div className="w-20 h-20 rounded-full border-4 border-blue-500 flex items-center justify-center mb-2">
-                              <p className="gradient-text">{pomodoroWork}</p>
+                              <p className="gradient-text">{savedPomodoroWork}</p>
                             </div>
                             <p className="text-xs text-secondary">Work</p>
                           </div>
                           <ChevronRight className="w-6 h-6 text-secondary" />
                           <div className="text-center">
                             <div className="w-20 h-20 rounded-full border-4 border-purple-500 flex items-center justify-center mb-2">
-                              <p className="gradient-text">{pomodoroBreak}</p>
+                              <p className="gradient-text">{savedPomodoroBreak}</p>
                             </div>
                             <p className="text-xs text-secondary">Break</p>
                           </div>
@@ -617,80 +673,6 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                   </Card>
                 )}
 
-                {/* Integrations */}
-                {activeCategory === 'integrations' && (
-                  <Card className="bg-card border-border shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Plug className="w-5 h-5 text-blue-400" />
-                        Integrations
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-4 rounded-lg border border-border">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-green-500 flex items-center justify-center">
-                              <span className="text-xl">📁</span>
-                            </div>
-                            <div>
-                              <p>Google Drive</p>
-                              <p className="text-xs text-secondary">
-                                {googleDriveConnected ? 'Connected' : 'Not connected'}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant={googleDriveConnected ? 'outline' : 'default'}
-                            onClick={handleConnectGoogle}
-                            disabled={googleDriveConnected}
-                          >
-                            {googleDriveConnected ? (
-                              <>
-                                <Check className="w-4 h-4 mr-2 text-green-400" />
-                                Connected
-                              </>
-                            ) : (
-                              'Connect'
-                            )}
-                          </Button>
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 rounded-lg border border-border">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                              <span className="text-xl">📅</span>
-                            </div>
-                            <div>
-                              <p>Google Calendar</p>
-                              <p className="text-xs text-secondary">
-                                {calendarConnected ? 'Connected' : 'Not connected'}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant={calendarConnected ? 'outline' : 'default'}
-                            onClick={() => {
-                              setCalendarConnected(true);
-                              toast.success('✅ Calendar connected!');
-                            }}
-                            disabled={calendarConnected}
-                          >
-                            {calendarConnected ? (
-                              <>
-                                <Check className="w-4 h-4 mr-2 text-green-400" />
-                                Connected
-                              </>
-                            ) : (
-                              'Connect'
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
                 {/* Appearance */}
                 {activeCategory === 'appearance' && (
                   <Card className="bg-card border-border shadow-sm">
@@ -702,16 +684,33 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div>
-                        <Label htmlFor="theme">Theme</Label>
-                        <Select value={theme} onValueChange={(value) => handleThemeChange(value as 'light' | 'dark')}>
-                          <SelectTrigger className="mt-2">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="light">Light</SelectItem>
-                            <SelectItem value="dark">Dark</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label>Theme</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                          {themeOptions.map((option) => {
+                            const isSelected = theme === option.value;
+
+                            return (
+                              <motion.button
+                                key={option.value}
+                                type="button"
+                                aria-pressed={isSelected}
+                                onClick={() => handleThemeChange(option.value)}
+                                className={`relative p-6 rounded-2xl border-2 transition-all text-left ${
+                                  isSelected
+                                    ? 'border-blue-500 ring-2 ring-blue-500/50'
+                                    : 'border-border hover:border-blue-500/50'
+                                }`}
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                              >
+                                <div className={`w-full h-24 rounded-xl mb-3 ${option.bg} ${option.text} flex items-center justify-center`}>
+                                  Aa
+                                </div>
+                                <p className="text-sm">{option.label}</p>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
