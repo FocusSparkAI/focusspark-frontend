@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
@@ -19,6 +19,7 @@ import {
   Target,
   Flame,
   Brain,
+  Boxes,
   Clock,
   Star,
   Zap,
@@ -26,8 +27,18 @@ import {
   TrendingUp,
   BookOpen,
   Calendar,
+  CalendarDays,
   CheckCircle,
+  ClipboardCheck,
+  Layers,
+  ListChecks,
+  Moon,
+  PlayCircle,
+  ShieldCheck,
   Share2,
+  Sunrise,
+  Upload,
+  UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
@@ -42,8 +53,8 @@ interface Achievement {
   progress: number;
   maxProgress: number;
   criteria: string;
-  reward?: string;
   tier: 'bronze' | 'silver' | 'gold' | 'platinum';
+  unlockOrder: number;
 }
 
 interface AchievementsScreenProps {
@@ -53,14 +64,25 @@ interface AchievementsScreenProps {
 const iconByBadgeName: Record<string, any> = {
   award: Award,
   'book-open': BookOpen,
+  boxes: Boxes,
   brain: Brain,
   calendar: Calendar,
+  'calendar-days': CalendarDays,
   clock: Clock,
+  'clipboard-check': ClipboardCheck,
   flame: Flame,
+  layers: Layers,
+  'list-checks': ListChecks,
+  moon: Moon,
+  'play-circle': PlayCircle,
+  'shield-check': ShieldCheck,
   star: Star,
+  sunrise: Sunrise,
   target: Target,
   trophy: Trophy,
   'trending-up': TrendingUp,
+  upload: Upload,
+  'user-check': UserCheck,
   zap: Zap,
 };
 
@@ -83,14 +105,20 @@ const mapBackendAchievement = (raw: any): Achievement => {
     criteria: raw?.criteria_type
       ? `${String(raw.criteria_type).replace(/_/g, ' ')}: ${maxProgress}`
       : raw?.description ?? 'Complete the required activity',
-    reward: raw?.reward,
     tier,
+    unlockOrder: Number(raw?.unlock_order ?? 999),
   };
 };
 
+const sortAchievementsByUnlockOrder = (items: Achievement[]) =>
+  [...items].sort((a, b) => {
+    const orderDifference = a.unlockOrder - b.unlockOrder;
+    if (orderDifference !== 0) return orderDifference;
+    return a.title.localeCompare(b.title);
+  });
+
 export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
-  const [showUnlockAnimation, setShowUnlockAnimation] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -114,7 +142,7 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
         });
 
         if (Array.isArray(response.data)) {
-          setAchievements(response.data.map(mapBackendAchievement));
+          setAchievements(sortAchievementsByUnlockOrder(response.data.map(mapBackendAchievement)));
         } else {
           setAchievements([]);
           setLoadError('Unexpected achievements response from server.');
@@ -151,24 +179,12 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
     'achievement-card-unlocked';
   const unlockedIconClass =
     'achievement-icon-unlocked';
-
-  const getTierBorder = (tier: Achievement['tier']) => {
-    switch (tier) {
-      case 'bronze':
-        return 'border-orange-500/50';
-      case 'silver':
-        return 'border-gray-400/50';
-      case 'gold':
-        return 'border-yellow-500/50';
-      case 'platinum':
-        return 'border-purple-500/50';
-    }
-  };
+  const lockedIconClass =
+    'bg-muted text-muted-foreground border border-border';
 
   const handleBadgeClick = (achievement: Achievement) => {
     setSelectedAchievement(achievement);
     if (achievement.unlocked) {
-      setShowUnlockAnimation(true);
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3000);
     }
@@ -300,14 +316,14 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                     <div className="flex justify-center">
                       <motion.div
                           className={`w-20 h-20 rounded-full flex items-center justify-center ${
-                            isLocked ? 'bg-muted' : unlockedIconClass
+                            isLocked ? lockedIconClass : unlockedIconClass
                           }`}
                         whileHover={!isLocked ? { rotate: [0, -10, 10, 0] } : {}}
                         transition={{ duration: 0.5 }}
                       >
                         <Icon
                           className={`w-10 h-10 ${
-                            isLocked ? 'text-secondary' : 'text-white'
+                            isLocked ? 'text-muted-foreground' : 'text-white'
                           }`}
                         />
                       </motion.div>
@@ -435,7 +451,9 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                   {/* Enlarged Badge */}
                   <div className="flex justify-center">
                     <motion.div
-                      className={`w-32 h-32 rounded-full flex items-center justify-center ${unlockedIconClass}`}
+                      className={`w-36 h-36 rounded-full flex items-center justify-center ${
+                        selectedAchievement.unlocked ? unlockedIconClass : lockedIconClass
+                      }`}
                       animate={
                         selectedAchievement.unlocked
                           ? {
@@ -452,7 +470,13 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                     >
                       {(() => {
                         const Icon = selectedAchievement.icon;
-                        return <Icon className="w-16 h-16 text-white" />;
+                        return (
+                          <Icon
+                            className={`w-20 h-20 ${
+                              selectedAchievement.unlocked ? 'text-white' : 'text-muted-foreground'
+                            }`}
+                          />
+                        );
                       })()}
                     </motion.div>
                   </div>
@@ -478,17 +502,6 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                       <div className="flex justify-between">
                         <span className="text-secondary">Earned:</span>
                         <span>{selectedAchievement.unlockedDate.toLocaleDateString()}</span>
-                      </div>
-                    )}
-
-                    {selectedAchievement.reward && (
-                      <div className="p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30">
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-4 h-4 text-yellow-400" />
-                          <span className="text-xs">
-                            <strong>Reward:</strong> {selectedAchievement.reward}
-                          </span>
-                        </div>
                       </div>
                     )}
 

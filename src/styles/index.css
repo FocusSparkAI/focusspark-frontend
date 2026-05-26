@@ -6288,21 +6288,21 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .achievement-card-unlocked {
-  background: #fff7ed;
-  border-color: #fed7aa;
-  box-shadow: 0 10px 24px #f973161f;
+  background: linear-gradient(145deg, #eff6fffa, #f5f3fff5);
+  border-color: #3b82f659;
+  box-shadow: 0 18px 38px #3b82f629;
 }
 
 .dark .achievement-card-unlocked {
-  background: #f973161a;
-  border-color: #f9731673;
-  box-shadow: none;
+  background: linear-gradient(145deg, #2563eb29, #7c3aed24);
+  border-color: #60a5fa61;
+  box-shadow: 0 18px 42px #2563eb2e;
 }
 
 .achievement-icon-unlocked {
-  background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 58%, #db2777 100%);
   color: #ffffff;
-  box-shadow: 0 12px 28px #f9731647;
+  box-shadow: 0 16px 34px #4f46e552;
 }
 
 @keyframes pulse-glow {

@@ -7,10 +7,9 @@ import {
   Bell,
   CheckCheck,
   Clock,
+  Home,
   Info,
 } from 'lucide-react';
-import { DashboardNavbar } from '../../components/layout/DashboardNavbar';
-import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
@@ -63,8 +62,7 @@ function getNotificationIcon(type: string) {
   return Info;
 }
 
-export function NotificationsPage({ onNavigate, theme, onToggleTheme }: NotificationsPageProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -144,44 +142,55 @@ export function NotificationsPage({ onNavigate, theme, onToggleTheme }: Notifica
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <DashboardSidebar
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onNavigate={onNavigate}
-        currentPage="notifications"
-      />
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onNavigate('dashboard')}
+                className="hover:bg-accent"
+              >
+                <Home className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="gradient-text">Notifications</h1>
+                <p className="text-sm text-secondary">
+                  Achievement unlocks, reminders, and study alerts
+                </p>
+              </div>
+            </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <DashboardNavbar onNavigate={onNavigate} theme={theme} onToggleTheme={onToggleTheme} />
+            <Button
+              variant="outline"
+              className="shrink-0"
+              onClick={() => void markAllNotificationsRead()}
+              disabled={unreadCount === 0}
+            >
+              <CheckCheck className="mr-2 h-4 w-4" />
+              Mark all as read
+            </Button>
+          </div>
+        </div>
+      </div>
 
-        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-5xl space-y-6">
+      <main className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mx-auto max-w-5xl space-y-8">
             <motion.section
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl border border-border bg-card p-6 shadow-sm"
+              className="rounded-xl border border-border bg-card px-8 py-8 shadow-sm"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1 text-sm text-blue-500">
-                  <Bell className="h-4 w-4 shrink-0" />
-                  Notification center
-                </div>
-
-                <Button
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() => void markAllNotificationsRead()}
-                  disabled={unreadCount === 0}
-                >
-                  <CheckCheck className="mr-2 h-4 w-4" />
-                  Mark all as read
-                </Button>
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1 text-sm text-blue-500">
+                <Bell className="h-4 w-4 shrink-0" />
+                Notification center
               </div>
 
-              <div className="mt-5">
+              <div className="mt-6">
                 <h1 className="text-3xl font-semibold tracking-normal">Notifications</h1>
-                <p className="mt-3 text-sm leading-6 text-secondary sm:text-base">
+                <p className="mt-5 text-sm leading-6 text-secondary sm:text-base">
                   Review achievement unlocks, reminders, and important study alerts.
                 </p>
               </div>
@@ -194,9 +203,13 @@ export function NotificationsPage({ onNavigate, theme, onToggleTheme }: Notifica
             )}
 
             {!isLoading && hasError && (
-              <Card className="border-destructive/30 bg-destructive/10">
-                <CardContent className="p-6 text-destructive">
-                  Could not load notifications.
+              <Card className="border-border bg-card">
+                <CardContent className="p-8 text-center">
+                  <Bell className="mx-auto h-10 w-10 text-secondary" />
+                  <p className="mt-4 font-medium">No notifications found.</p>
+                  <p className="mt-1 text-sm text-secondary">
+                    New notifications will appear here when they are available.
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -205,7 +218,7 @@ export function NotificationsPage({ onNavigate, theme, onToggleTheme }: Notifica
               <Card className="border-border bg-card">
                 <CardContent className="p-8 text-center">
                   <Bell className="mx-auto h-10 w-10 text-secondary" />
-                  <p className="mt-4 font-medium">No important notifications yet.</p>
+                  <p className="mt-4 font-medium">No notifications yet.</p>
                   <p className="mt-1 text-sm text-secondary">
                     Achievement unlocks and reminders will appear here.
                   </p>
@@ -255,9 +268,8 @@ export function NotificationsPage({ onNavigate, theme, onToggleTheme }: Notifica
                 })}
               </div>
             )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

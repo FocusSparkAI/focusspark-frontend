@@ -124,7 +124,7 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 gradient-wave relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-start sm:justify-center px-4 sm:px-6 py-6 sm:py-8 gradient-wave relative overflow-x-hidden overflow-y-auto">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(30)].map((_, i) => (
           <motion.div
@@ -167,7 +167,7 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
         </div>
       )}
 
-      <div className="flex gap-2 mb-8 z-10">
+      <div className="flex gap-2 mb-6 z-10">
         {[...Array(totalSteps)].map((_, i) => (
           <motion.div
             key={i}
@@ -183,7 +183,7 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
         ))}
       </div>
 
-      <div className="w-full max-w-2xl relative z-10">
+      <div className="w-full max-w-2xl relative z-10 pb-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
@@ -300,7 +300,7 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
         </AnimatePresence>
 
         {currentStep < totalSteps - 1 && (
-          <div className="flex justify-between mt-8">
+          <div className="flex justify-between mt-6">
             {currentStep === 0 ? (
               <Button
                 type="button"

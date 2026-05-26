@@ -16,7 +16,7 @@ export function SciencePage() {
             Made with <span className="gradient-text">Science</span>, Tested by{' '}
             <span className="gradient-text">Students</span>
           </motion.h1>
-          
+
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -32,11 +32,14 @@ export function SciencePage() {
             transition={{ delay: 0.4 }}
           >
             <Button
+              asChild
               size="lg"
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all px-8 py-6"
             >
-              <FileText className="w-5 h-5 mr-2" />
-              Read Our White Paper
+              <a href="/focusspark-science-white-paper.pdf" download>
+                <FileText className="w-5 h-5 mr-2" />
+                Read Our White Paper
+              </a>
             </Button>
           </motion.div>
         </div>
@@ -60,15 +63,15 @@ export function SciencePage() {
                 <Cpu className="w-6 h-6 text-white -ml-3" />
               </div>
             </div>
-            
+
             <h3 className="text-3xl mb-4">
               AI precision meets <span className="gradient-text">human learning</span>
             </h3>
-            
+
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Our algorithms are built on decades of cognitive science research, 
-              combined with cutting-edge machine learning to understand how your 
-              brain learns best. Every session adapts to your unique patterns, 
+              Our algorithms are built on decades of cognitive science research,
+              combined with cutting-edge machine learning to understand how your
+              brain learns best. Every session adapts to your unique patterns,
               optimizing for maximum retention and minimal burnout.
             </p>
           </motion.div>
@@ -87,16 +90,16 @@ export function SciencePage() {
                 <Waves className="w-8 h-8 text-white" />
               </div>
             </div>
-            
+
             <h3 className="text-3xl mb-4">
-              FocusSpark works <span className="gradient-text">differently</span> — 
+              FocusSpark works <span className="gradient-text">differently</span> -
               and affects you <span className="gradient-text">differently</span>
             </h3>
-            
+
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Unlike generic productivity apps, FocusSpark uses neuroscience-backed 
-              techniques like spaced repetition, active recall, and flow state 
-              induction. The result? Faster learning, better retention, and a 
+              Unlike generic productivity apps, FocusSpark uses neuroscience-backed
+              techniques like spaced repetition, active recall, and flow state
+              induction. The result? Faster learning, better retention, and a
               healthier relationship with studying.
             </p>
           </motion.div>

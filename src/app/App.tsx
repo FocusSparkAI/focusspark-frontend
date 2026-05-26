@@ -23,6 +23,7 @@ import { NotificationsPage } from '../pages/notifications/NotificationsPage';
 import { Footer } from '../components/layout/Footer';
 import { Toaster } from '../components/ui/sonner';
 import { FocusProvider } from '../context/FocusContext';
+import { BACKEND_ROUTES, buildBackendUrl } from '../config/backend';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('auth_token');
@@ -30,12 +31,13 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children;
 }
 
+const publicPages = new Set(['home', 'science', 'about', 'contact', 'signin', 'signup', 'forgot-password']);
+const publicPaths = new Set(['/', '/science', '/about', '/contact', '/signin', '/signup', '/forgot-password']);
+
 function AppRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const applyTheme = (newTheme: 'light' | 'dark') => {
@@ -43,6 +45,32 @@ function AppRoutes() {
     localStorage.setItem('focusspark-theme', newTheme);
     if (newTheme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
+  };
+
+  const saveThemePreference = async (newTheme: 'light' | 'dark') => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    try {
+      await fetch(buildBackendUrl(BACKEND_ROUTES.study.settings.update), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          dark_mode: newTheme === 'dark',
+          appearance: { theme: newTheme },
+        }),
+      });
+    } catch {
+      // Local theme still applies immediately; backend sync can recover later.
+    }
+  };
+
+  const applyThemeAndSave = (newTheme: 'light' | 'dark') => {
+    applyTheme(newTheme);
+    void saveThemePreference(newTheme);
   };
 
   useEffect(() => {
@@ -55,10 +83,8 @@ function AppRoutes() {
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
-    applyTheme(newTheme);
+    applyThemeAndSave(newTheme);
   };
-
-  const publicPages = new Set(['home', 'science', 'about', 'contact', 'signin', 'signup', 'forgot-password']);
 
   const handleNavigate = (page: string) => {
     const map: Record<string, string> = {
@@ -88,13 +114,11 @@ function AppRoutes() {
   };
 
   const handleAuthSuccess = (isNew?: boolean) => {
-    setIsAuthenticated(true);
     if (isNew) navigate('/onboarding');
     else navigate('/dashboard');
   };
 
-  const handleOnboardingComplete = (skipTour?: boolean) => {
-    setHasCompletedOnboarding(true);
+  const handleOnboardingComplete = () => {
     navigate('/dashboard');
   };
 
@@ -113,12 +137,23 @@ function AppRoutes() {
     '/notifications',
   ].includes(path);
 
+  useEffect(() => {
+    if (!publicPaths.has(location.pathname) && !localStorage.getItem('auth_token')) {
+      navigate('/signin', { replace: true, state: { fromProtected: true } });
+    }
+  }, [location.pathname, navigate]);
+
   useEffect(() => window.scrollTo({ top: 0, behavior: 'smooth' }), [location.pathname]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       {!isSpecialPage && (
-        <Navigation currentPage={path === '/' ? 'home' : path.replace('/', '')} onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} />
+        <Navigation
+          currentPage={path === '/' ? 'home' : path.replace('/', '')}
+          onNavigate={handleNavigate}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
       )}
 
       <Routes>
@@ -137,11 +172,11 @@ function AppRoutes() {
         <Route path="/signin" element={<SignInPage onNavigate={handleNavigate} onAuthSuccess={handleAuthSuccess} />} />
         <Route path="/signup" element={<SignUpPage onNavigate={handleNavigate} onAuthSuccess={handleAuthSuccess} />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigate} />} />
-        <Route path="/onboarding" element={<RequireAuth><OnboardingFlow onComplete={handleOnboardingComplete} onThemeChange={applyTheme} /></RequireAuth>} />
+        <Route path="/onboarding" element={<RequireAuth><OnboardingFlow onComplete={handleOnboardingComplete} onThemeChange={applyThemeAndSave} /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><StudentDashboard onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} /></RequireAuth>} />
         <Route path="/achievements" element={<RequireAuth><AchievementsScreen onNavigate={handleNavigate} /></RequireAuth>} />
         <Route path="/reports" element={<RequireAuth><ReportsAnalytics onNavigate={handleNavigate} /></RequireAuth>} />
-        <Route path="/profile" element={<RequireAuth><ProfileScreen onNavigate={handleNavigate} onReplayOnboarding={() => { setHasCompletedOnboarding(false); navigate('/onboarding'); }} /></RequireAuth>} />
+        <Route path="/profile" element={<RequireAuth><ProfileScreen onNavigate={handleNavigate} onReplayOnboarding={() => { navigate('/onboarding'); }} /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><SettingsScreen onNavigate={handleNavigate} theme={theme} onThemeChange={applyTheme} /></RequireAuth>} />
         <Route path="/analytics" element={<RequireAuth><AnalyticsDashboard onNavigate={handleNavigate} /></RequireAuth>} />
         <Route path="/notifications" element={<RequireAuth><NotificationsPage onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} /></RequireAuth>} />

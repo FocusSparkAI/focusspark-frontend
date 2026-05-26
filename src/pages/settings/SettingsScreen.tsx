@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Switch } from '../../components/ui/switch';
-import { Slider } from '../../components/ui/slider';
+import { Separator } from '../../components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -13,22 +13,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { Separator } from '../../components/ui/separator';
 import {
   Home,
   User,
   Clock,
+  AlertCircle,
   Camera,
   Bell,
   Palette,
   Shield,
   ChevronRight,
-  AlertCircle,
+  Bot,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { useFocus } from '../../context/FocusContext';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { DeleteAccountDialog } from '../../components/account/DeleteAccountDialog';
 
 interface SettingsScreenProps {
   onNavigate: (page: string) => void;
@@ -38,6 +39,7 @@ interface SettingsScreenProps {
 
 const categories = [
   { id: 'account', label: 'Account & Auth', icon: User },
+  { id: 'ai', label: 'AI Defaults', icon: Bot },
   { id: 'pomodoro', label: 'Pomodoro & Session', icon: Clock },
   { id: 'focus', label: 'Focus Detection', icon: Camera },
   { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -49,6 +51,18 @@ const themeOptions = [
   { value: 'light', label: 'Light', bg: 'bg-white', text: 'text-black' },
   { value: 'dark', label: 'Dark', bg: 'bg-gray-900', text: 'text-white' },
 ] as const;
+
+type AIProvider = 'openai' | 'gemini';
+
+const aiProviderOptions: Array<{ value: AIProvider; label: string; model: string }> = [
+  { value: 'openai', label: 'ChatGPT', model: 'gpt-4.1' },
+  { value: 'gemini', label: 'Gemini', model: 'gemini-2.5-flash' },
+];
+
+const aiDefaultModelByProvider: Record<AIProvider, string> = {
+  openai: 'gpt-4.1',
+  gemini: 'gemini-2.5-flash',
+};
 
 const formatLastLogin = (value: unknown) => {
   if (!value) return '';
@@ -66,6 +80,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
   const { isDetectionEnabled, setIsDetectionEnabled } = useFocus();
   const [activeCategory, setActiveCategory] = useState('account');
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
+  const [deleteConfirmStep, setDeleteConfirmStep] = useState(1);
 
   // Account settings
   const [email, setEmail] = useState('');
@@ -79,18 +95,14 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
   const [pomodoroBreak, setPomodoroBreak] = useState(5);
   const [savedPomodoroWork, setSavedPomodoroWork] = useState(25);
   const [savedPomodoroBreak, setSavedPomodoroBreak] = useState(5);
-  const [autoStartNext, setAutoStartNext] = useState(true);
-  const [skipBreaks, setSkipBreaks] = useState(false);
-  const [reviewOnFinish, setReviewOnFinish] = useState(true);
-
-  // Focus Detection settings - using context for camera enablement
-  const [focusSensitivity, setFocusSensitivity] = useState(50);
-  const [fallbackMethod, setFallbackMethod] = useState('prompts');
 
   // Notification settings
   const [desktopNotifications, setDesktopNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [reminderInterval, setReminderInterval] = useState(30);
+
+  // AI defaults
+  const [preferredAiProvider, setPreferredAiProvider] = useState<AIProvider>('openai');
+  const [preferredAiModel, setPreferredAiModel] = useState('gpt-4.1');
 
   const handleCategoryChange = (newCategory: string) => {
     const oldIndex = categories.findIndex((c) => c.id === activeCategory);
@@ -146,19 +158,47 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {
+        const data = response.data ?? {};
         const savedTheme =
-          response.data?.appearance?.theme ??
-          (typeof response.data?.dark_mode === 'boolean'
-            ? response.data.dark_mode
+          data?.appearance?.theme ??
+          (typeof data?.dark_mode === 'boolean'
+            ? data.dark_mode
               ? 'dark'
               : 'light'
             : null);
 
-        if (savedTheme === 'light' || savedTheme === 'dark') {
+        const localTheme = localStorage.getItem('focusspark-theme');
+        if (!localTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
           onThemeChange(savedTheme);
         }
 
-        const savedPomodoro = response.data?.pomodoro;
+        const savedWorkMinutes = Number(data?.pomodoro_duration_minutes);
+        const savedBreakMinutes = Number(data?.break_duration_minutes);
+        if (Number.isFinite(savedWorkMinutes) && savedWorkMinutes > 0) {
+          setPomodoroWork(savedWorkMinutes);
+          setSavedPomodoroWork(savedWorkMinutes);
+        }
+        if (Number.isFinite(savedBreakMinutes) && savedBreakMinutes > 0) {
+          setPomodoroBreak(savedBreakMinutes);
+          setSavedPomodoroBreak(savedBreakMinutes);
+        }
+
+        if (typeof data?.focus_alerts_enabled === 'boolean') {
+          setIsDetectionEnabled(data.focus_alerts_enabled);
+        }
+        if (typeof data?.notifications_enabled === 'boolean') {
+          setDesktopNotifications(data.notifications_enabled);
+        }
+        if (data?.preferred_ai_provider === 'openai' || data?.preferred_ai_provider === 'gemini') {
+          setPreferredAiProvider(data.preferred_ai_provider);
+        }
+        if (data?.preferred_ai_provider === 'openai' || data?.preferred_ai_provider === 'gemini') {
+          setPreferredAiModel(aiDefaultModelByProvider[data.preferred_ai_provider]);
+        } else if (typeof data?.preferred_ai_model === 'string' && data.preferred_ai_model.trim()) {
+          setPreferredAiModel(data.preferred_ai_model);
+        }
+        setSoundEnabled(data?.accessibility?.notification_sound !== false);
+        const savedPomodoro = data?.pomodoro ?? data?.integrations?.pomodoro;
         if (savedPomodoro) {
           const workMinutes = Number(savedPomodoro.work_minutes ?? savedPomodoro.workMinutes);
           const breakMinutes = Number(savedPomodoro.break_minutes ?? savedPomodoro.breakMinutes);
@@ -171,12 +211,6 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
             setPomodoroBreak(breakMinutes);
             setSavedPomodoroBreak(breakMinutes);
           }
-          if (typeof savedPomodoro.auto_start_next === 'boolean') setAutoStartNext(savedPomodoro.auto_start_next);
-          if (typeof savedPomodoro.autoStartNext === 'boolean') setAutoStartNext(savedPomodoro.autoStartNext);
-          if (typeof savedPomodoro.skip_breaks === 'boolean') setSkipBreaks(savedPomodoro.skip_breaks);
-          if (typeof savedPomodoro.skipBreaks === 'boolean') setSkipBreaks(savedPomodoro.skipBreaks);
-          if (typeof savedPomodoro.review_on_finish === 'boolean') setReviewOnFinish(savedPomodoro.review_on_finish);
-          if (typeof savedPomodoro.reviewOnFinish === 'boolean') setReviewOnFinish(savedPomodoro.reviewOnFinish);
         }
       })
       .catch(() => {
@@ -214,12 +248,19 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
   };
 
   const handleDeleteAccount = async () => {
+    if (deleteConfirmStep === 1) {
+      setDeleteConfirmStep(2);
+      return;
+    }
+
     const headers = authHeaders();
     if (!headers) return;
 
     try {
       await axios.delete(buildBackendUrl(BACKEND_ROUTES.profile.delete), { headers });
-      localStorage.removeItem('auth_token');
+      localStorage.clear();
+      setShowDeleteAccountDialog(false);
+      setDeleteConfirmStep(1);
       toast.success('Account deleted successfully.');
       onNavigate('home');
     } catch (err: any) {
@@ -267,13 +308,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       await axios.put(
         buildBackendUrl(BACKEND_ROUTES.study.settings.update),
         {
-          pomodoro: {
-            work_minutes: pomodoroWork,
-            break_minutes: pomodoroBreak,
-            auto_start_next: autoStartNext,
-            skip_breaks: skipBreaks,
-            review_on_finish: reviewOnFinish,
-          },
+          pomodoro_duration_minutes: pomodoroWork,
+          break_duration_minutes: pomodoroBreak,
         },
         { headers },
       );
@@ -282,6 +318,78 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       toast.success('Pomodoro timings saved.');
     } catch (err: any) {
       const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save Pomodoro settings';
+      toast.error(message);
+    }
+  };
+
+  const handleSaveFocusSettings = async () => {
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+      await axios.put(
+        buildBackendUrl(BACKEND_ROUTES.study.settings.update),
+        {
+          focus_alerts_enabled: isDetectionEnabled,
+        },
+        { headers },
+      );
+      toast.success('Focus detection settings saved.');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save focus settings';
+      toast.error(message);
+    }
+  };
+
+  const handleAiProviderChange = (provider: AIProvider) => {
+    setPreferredAiProvider(provider);
+    setPreferredAiModel(aiDefaultModelByProvider[provider]);
+  };
+
+  const handleSaveAiSettings = async () => {
+    const headers = authHeaders();
+    if (!headers) return;
+
+    const model = preferredAiModel.trim();
+    if (!model) {
+      toast.error('Choose or enter a model name.');
+      return;
+    }
+
+    try {
+      await axios.put(
+        buildBackendUrl(BACKEND_ROUTES.study.settings.update),
+        {
+          preferred_ai_provider: preferredAiProvider,
+          preferred_ai_model: model,
+        },
+        { headers },
+      );
+      toast.success('AI defaults saved.');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save AI defaults';
+      toast.error(message);
+    }
+  };
+
+  const handleSaveNotificationSettings = async () => {
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+      await axios.put(
+        buildBackendUrl(BACKEND_ROUTES.study.settings.update),
+        {
+          notifications_enabled: desktopNotifications,
+          accessibility: {
+            notification_sound: soundEnabled,
+          },
+        },
+        { headers },
+      );
+      toast.success('Notification settings saved.');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save notification settings';
       toast.error(message);
     }
   };
@@ -436,6 +544,52 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                   </Card>
                 )}
 
+                {/* AI Defaults */}
+                {activeCategory === 'ai' && (
+                  <Card className="bg-card border-border shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Bot className="w-5 h-5 text-cyan-400" />
+                        AI Defaults
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div>
+                        <div>
+                          <Label>Default Provider</Label>
+                          <Select value={preferredAiProvider} onValueChange={(value) => handleAiProviderChange(value as AIProvider)}>
+                            <SelectTrigger className="mt-2">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {aiProviderOptions.map((provider) => (
+                                <SelectItem key={provider.value} value={provider.value}>
+                                  {provider.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="inline-flex max-w-fit items-center gap-2.5 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-secondary">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cyan-500/15 text-cyan-500 dark:bg-cyan-400/15 dark:text-cyan-300">
+                          <Bot className="h-4 w-4" />
+                        </span>
+                        <span>
+                          Used for <span className="text-cyan-600 dark:text-cyan-300">quiz and flashcard</span> generation.
+                        </span>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button onClick={handleSaveAiSettings}>
+                          Save AI defaults
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Pomodoro & Session */}
                 {activeCategory === 'pomodoro' && (
                   <Card className="bg-card border-border shadow-sm">
@@ -477,40 +631,6 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                         <Button onClick={handleSavePomodoroSettings}>
                           Save timings
                         </Button>
-                      </div>
-
-                      <Separator />
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Label>Auto-start Next Session</Label>
-                            <p className="text-xs text-secondary">
-                              Automatically begin the next Pomodoro after break
-                            </p>
-                          </div>
-                          <Switch checked={autoStartNext} onCheckedChange={setAutoStartNext} />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Label>Skip Breaks</Label>
-                            <p className="text-xs text-secondary">
-                              Go straight to next work session
-                            </p>
-                          </div>
-                          <Switch checked={skipBreaks} onCheckedChange={setSkipBreaks} />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Label>Review on Finish</Label>
-                            <p className="text-xs text-secondary">
-                              Review your focus summary after each session
-                            </p>
-                          </div>
-                          <Switch checked={reviewOnFinish} onCheckedChange={setReviewOnFinish} />
-                        </div>
                       </div>
 
                       <Separator />
@@ -561,45 +681,6 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                         }} />
                       </div>
 
-                      {isDetectionEnabled && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="space-y-4"
-                        >
-                          <div>
-                            <Label>Detection Sensitivity</Label>
-                            <div className="flex items-center gap-4 mt-2">
-                              <span className="text-xs text-secondary">Gentle</span>
-                              <Slider
-                                value={[focusSensitivity]}
-                                onValueChange={(v) => setFocusSensitivity(v[0])}
-                                max={100}
-                                step={1}
-                                className="flex-1"
-                              />
-                              <span className="text-xs text-secondary">Aggressive</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-
-                      {!isDetectionEnabled && (
-                        <div>
-                          <Label htmlFor="fallback">Fallback Method</Label>
-                          <Select value={fallbackMethod} onValueChange={setFallbackMethod}>
-                            <SelectTrigger className="mt-2">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="prompts">Feedback Prompts</SelectItem>
-                              <SelectItem value="timer">Timer-based</SelectItem>
-                              <SelectItem value="none">None</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
                       <Separator />
 
                       <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
@@ -609,6 +690,12 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                             <strong>Privacy Notice:</strong> All detection runs locally on your device. No video data is stored or transmitted.
                           </span>
                         </p>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button onClick={handleSaveFocusSettings}>
+                          Save focus settings
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -626,9 +713,9 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                     <CardContent className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label>Desktop Notifications</Label>
+                          <Label>Extension Notifications</Label>
                           <p className="text-xs text-secondary">
-                            Show system notifications for focus alerts
+                            Show reminders and alerts inside the FocusSpark extension
                           </p>
                         </div>
                         <Switch
@@ -647,28 +734,11 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                         <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
                       </div>
 
-                      <Separator />
-
-                      <div>
-                        <Label htmlFor="reminder-interval">Refocus Reminder Interval (minutes)</Label>
-                        <Input
-                          id="reminder-interval"
-                          type="number"
-                          value={reminderInterval}
-                          onChange={(e) => setReminderInterval(parseInt(e.target.value))}
-                          className="mt-2 w-32"
-                        />
-                        <p className="text-xs text-secondary mt-2">
-                          Example: Remind me every {reminderInterval} minutes to refocus
-                        </p>
+                      <div className="flex justify-end">
+                        <Button onClick={handleSaveNotificationSettings}>
+                          Save notification settings
+                        </Button>
                       </div>
-
-                      <Button
-                        variant="outline"
-                        onClick={() => toast('🔔 Test notification sent!')}
-                      >
-                        Preview Notification
-                      </Button>
                     </CardContent>
                   </Card>
                 )}
@@ -729,7 +799,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       <Button
                         variant="outline"
                         className="w-full border-red-500/50 hover:bg-red-500/10 text-red-400"
-                        onClick={handleDeleteAccount}
+                        onClick={() => setShowDeleteAccountDialog(true)}
                       >
                         <AlertCircle className="w-4 h-4 mr-2" />
                         Delete Account
@@ -748,6 +818,14 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
           </div>
         </div>
       </div>
+
+      <DeleteAccountDialog
+        open={showDeleteAccountDialog}
+        step={deleteConfirmStep}
+        onOpenChange={setShowDeleteAccountDialog}
+        onStepChange={setDeleteConfirmStep}
+        onDelete={handleDeleteAccount}
+      />
     </div>
   );
 }

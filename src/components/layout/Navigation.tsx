@@ -8,7 +8,12 @@ interface NavigationProps {
   onToggleTheme: () => void;
 }
 
-export function Navigation({ currentPage, onNavigate, theme, onToggleTheme }: NavigationProps) {
+export function Navigation({
+  currentPage,
+  onNavigate,
+  theme,
+  onToggleTheme,
+}: NavigationProps) {
   const navLinks = [
     { name: 'Home', path: 'home' },
     { name: 'Our Science', path: 'science' },
@@ -64,7 +69,6 @@ export function Navigation({ currentPage, onNavigate, theme, onToggleTheme }: Na
               )}
             </Button>
 
-            {/* Auth Buttons */}
             <Button
               variant="ghost"
               onClick={() => onNavigate('signin')}
@@ -76,7 +80,7 @@ export function Navigation({ currentPage, onNavigate, theme, onToggleTheme }: Na
               onClick={() => onNavigate('signup')}
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all"
             >
-              Get Started
+              Sign Up
             </Button>
           </div>
         </div>

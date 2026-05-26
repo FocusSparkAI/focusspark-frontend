@@ -118,7 +118,10 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
         onAuthSuccess?.(true);
       }, 1200);
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Signup failed';
+      const detail = err?.response?.data?.detail;
+      const message = Array.isArray(detail)
+        ? detail.map((item: any) => item?.msg).filter(Boolean).join(', ')
+        : detail || err?.response?.data?.message || err?.message || 'Signup failed';
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -504,13 +507,13 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
             onClick={() => onNavigate('home')}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            ← Back to Home
+            Back to Home
           </button>
         </div>
 
         {/* Footer */}
         <p className="text-center text-muted-foreground text-xs mt-3 opacity-60">
-          © 2026 FocusSpark. All rights reserved.
+          &copy; 2026 FocusSpark. All rights reserved.
         </p>
       </motion.div>
     </div>

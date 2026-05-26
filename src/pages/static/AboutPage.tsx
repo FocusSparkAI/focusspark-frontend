@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Target, Eye, FlaskConical, Code, Briefcase, Palette, Rocket, Microscope, FileCode2, Layers3, FileCode, Wrench } from 'lucide-react';
+import { Target, Eye, Code, Palette, Rocket, Microscope, Layers3, Wrench } from 'lucide-react';
 
 const teamMembers = [
   {

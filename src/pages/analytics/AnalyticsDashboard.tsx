@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { motion } from 'motion/react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -10,7 +12,6 @@ import {
   Download,
   Clock,
   CalendarCheck,
-  Target,
   AlertCircle,
 } from 'lucide-react';
 import {
@@ -26,66 +27,160 @@ import {
   Legend,
 } from 'recharts';
 import { toast } from 'sonner';
+import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 
 interface AnalyticsDashboardProps {
   onNavigate: (page: string) => void;
 }
 
-// Sample data
-const focusData = [
-  { date: 'Mon', minutes: 120, distractions: 5, accuracy: 85 },
-  { date: 'Tue', minutes: 95, distractions: 8, accuracy: 78 },
-  { date: 'Wed', minutes: 140, distractions: 3, accuracy: 92 },
-  { date: 'Thu', minutes: 110, distractions: 6, accuracy: 88 },
-  { date: 'Fri', minutes: 130, distractions: 4, accuracy: 90 },
-  { date: 'Sat', minutes: 160, distractions: 2, accuracy: 95 },
-  { date: 'Sun', minutes: 145, distractions: 3, accuracy: 91 },
-];
+type FocusDataRow = {
+  date: string;
+  minutes: number;
+  distractions: number;
+  accuracy: number;
+};
 
-const consistencyData = [
-  { week: 'Week 1', studyDays: 4, completedSessions: 18 },
-  { week: 'Week 2', studyDays: 5, completedSessions: 22 },
-  { week: 'Week 3', studyDays: 6, completedSessions: 25 },
-  { week: 'Week 4', studyDays: 7, completedSessions: 27 },
-];
+type ConsistencyDataRow = {
+  week: string;
+  studyDays: number;
+  completedSessions: number;
+};
 
-const studyInsights = [
-  {
-    title: 'Best focus day',
-    value: 'Saturday',
-    detail: '160 focused minutes with only 2 distractions',
-    icon: CalendarCheck,
-    color: 'text-teal-400',
-  },
-  {
-    title: 'Best study window',
-    value: '7-9 PM',
-    detail: 'Highest average accuracy in recent sessions',
-    icon: Clock,
-    color: 'text-blue-400',
-  },
-  {
-    title: 'Needs attention',
-    value: 'Midweek dips',
-    detail: 'Wednesday and Friday show lower consistency',
-    icon: AlertCircle,
-    color: 'text-yellow-400',
-  },
-];
+const toCsvCell = (value: unknown) => {
+  const text = value == null ? '' : String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+const downloadCsv = (filename: string, rows: unknown[][]) => {
+  const csv = rows.map((row) => row.map(toCsvCell).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
 
 export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
+  const [backendAnalytics, setBackendAnalytics] = useState<any | null>(null);
+  const [backendSummary, setBackendSummary] = useState<any | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const headers = { Authorization: `Bearer ${token}` };
+
+      try {
+        const [analyticsResponse, summaryResponse] = await Promise.all([
+          axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.analytics), { headers }),
+          axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.summary), { headers }),
+        ]);
+
+        setBackendAnalytics(analyticsResponse.data);
+        setBackendSummary(summaryResponse.data);
+        setLoadError(null);
+      } catch (error) {
+        setLoadError('Could not load backend analytics yet.');
+        console.warn('Backend analytics failed.', error);
+      }
+    };
+
+    loadAnalytics();
+  }, []);
+
+  const focusData: FocusDataRow[] = useMemo(() => {
+    if (!Array.isArray(backendAnalytics?.daily_focus)) return [];
+
+    return backendAnalytics.daily_focus.map((item: any) => ({
+      date: item.day,
+      minutes: Number(item.minutes ?? 0),
+      distractions: Number(item.distractions ?? 0),
+      accuracy: Number(item.focus_score ?? 0),
+    }));
+  }, [backendAnalytics]);
+
+  const consistencyData: ConsistencyDataRow[] = useMemo(() => {
+    if (!Array.isArray(backendAnalytics?.weekly_consistency)) return [];
+
+    return backendAnalytics.weekly_consistency.map((item: any) => ({
+      week: item.week,
+      studyDays: Number(item.study_days ?? 0),
+      completedSessions: Number(item.completed_sessions ?? 0),
+    }));
+  }, [backendAnalytics]);
+
+  const totalFocusMinutes =
+    Number(backendAnalytics?.total_focus_minutes ?? backendSummary?.total_work_minutes ?? 0) ||
+    focusData.reduce((sum, item) => sum + item.minutes, 0);
+  const averageFocusScore =
+    Number(backendAnalytics?.average_focus ?? backendSummary?.average_focus ?? 0) ||
+    (focusData.length
+      ? Math.round(focusData.reduce((sum, item) => sum + item.accuracy, 0) / focusData.length)
+      : 0);
+  const completedSessions =
+    Number(backendAnalytics?.completed_sessions ?? backendSummary?.completed_sessions ?? 0) ||
+    consistencyData.reduce((sum, item) => sum + item.completedSessions, 0);
+  const totalDistractions =
+    Number(backendAnalytics?.total_distractions ?? backendSummary?.total_distractions ?? 0) ||
+    focusData.reduce((sum, item) => sum + item.distractions, 0);
+  const currentStreak = Number(backendAnalytics?.current_streak ?? backendSummary?.current_streak ?? 0);
+
+  const goalDaysHit = focusData.filter((item) => item.minutes > 0).length;
+
+  const studyInsights = useMemo(() => {
+    const backendInsights = Array.isArray(backendAnalytics?.insights) ? backendAnalytics.insights : [];
+    const icons = [CalendarCheck, Clock, AlertCircle];
+    const colors = ['text-teal-400', 'text-blue-400', 'text-yellow-400'];
+
+    return backendInsights.map((insight: any, index: number) => ({
+      title: insight.title ?? 'Study insight',
+      value: insight.value ?? '',
+      detail: insight.detail ?? '',
+      icon: icons[index % icons.length],
+      color: colors[index % colors.length],
+    }));
+  }, [backendAnalytics]);
+
   const handleExportData = () => {
-    toast.success('Preparing analytics export...');
-    setTimeout(() => {
-      toast.success('Analytics export ready.');
-    }, 1500);
+    if (!focusData.length && !consistencyData.length) {
+      toast.info('No analytics data is available to export yet.');
+      return;
+    }
+
+    downloadCsv('focusspark-analytics.csv', [
+      ['FocusSpark Analytics Export'],
+      ['Exported At', new Date().toISOString()],
+      [],
+      ['Summary'],
+      ['Total Focus Minutes', totalFocusMinutes],
+      ['Average Focus Score', averageFocusScore],
+      ['Completed Sessions', completedSessions],
+      ['Distractions', totalDistractions],
+      ['Current Study Streak', currentStreak],
+      [],
+      ['Daily Focus'],
+      ['Day', 'Focus Minutes', 'Distractions', 'Focus Score'],
+      ...focusData.map((item) => [item.date, item.minutes, item.distractions, item.accuracy]),
+      [],
+      ['Weekly Consistency'],
+      ['Week', 'Study Days', 'Completed Sessions'],
+      ...consistencyData.map((item) => [item.week, item.studyDays, item.completedSessions]),
+      [],
+      ['Insights'],
+      ['Title', 'Value', 'Detail'],
+      ...studyInsights.map((insight) => [insight.title, insight.value, insight.detail]),
+    ]);
+    toast.success('Analytics export ready.');
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -94,11 +189,11 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
                 onClick={() => onNavigate('dashboard')}
                 className="hover:bg-accent"
               >
-                <Home className="w-5 h-5" />
+                <Home className="h-5 w-5" />
               </Button>
               <div>
                 <h1 className="gradient-text flex items-center gap-2">
-                  <BarChart3 className="w-6 h-6" />
+                  <BarChart3 className="h-6 w-6" />
                   Focus Analytics
                 </h1>
                 <p className="text-sm text-secondary">
@@ -107,17 +202,21 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={handleExportData} className="gap-2">
-                <Download className="w-4 h-4" />
-                Export Data
-              </Button>
-            </div>
+            <Button variant="outline" onClick={handleExportData} className="gap-2">
+              <Download className="h-4 w-4" />
+              Export Data
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        {loadError && (
+          <div className="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">
+            {loadError}
+          </div>
+        )}
+
         <Tabs defaultValue="metrics" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 lg:w-auto">
             <TabsTrigger value="metrics">Key Metrics</TabsTrigger>
@@ -125,101 +224,73 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
             <TabsTrigger value="insights">Insights</TabsTrigger>
           </TabsList>
 
-          {/* Key Metrics Tab */}
           <TabsContent value="metrics" className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <Card className="bg-card border-border shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-500/10">
-                        <Zap className="w-6 h-6 text-blue-400" />
-                      </div>
-                      <TrendingUp className="w-4 h-4 text-green-400" />
-                    </div>
-                    <p className="text-sm text-secondary">Total Focus Time</p>
-                    <p className="mt-2 text-3xl leading-none gradient-text">900</p>
-                    <p className="mt-2 text-xs text-secondary">minutes this week</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <Card className="bg-card border-border shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-purple-500/10">
-                        <BarChart3 className="w-6 h-6 text-purple-400" />
-                      </div>
-                      <TrendingUp className="w-4 h-4 text-green-400" />
-                    </div>
-                    <p className="text-sm text-secondary">Avg Focus Score</p>
-                    <p className="mt-2 text-3xl leading-none gradient-text">88%</p>
-                    <p className="mt-2 text-xs text-secondary">+5% from last week</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Card className="bg-card border-border shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-teal-500/10">
-                        <CalendarCheck className="w-6 h-6 text-teal-400" />
-                      </div>
-                      <TrendingUp className="w-4 h-4 text-green-400" />
-                    </div>
-                    <p className="text-sm text-secondary">Study Sessions</p>
-                    <p className="mt-2 text-3xl leading-none gradient-text">27</p>
-                    <p className="mt-2 text-xs text-secondary">this week</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <Card className="bg-card border-border shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-yellow-500/10">
-                        <AlertCircle className="w-6 h-6 text-yellow-400" />
-                      </div>
-                      <TrendingUp className="w-4 h-4 text-green-400" />
-                    </div>
-                    <p className="text-sm text-secondary">Distractions</p>
-                    <p className="mt-2 text-3xl leading-none gradient-text">31</p>
-                    <p className="mt-2 text-xs text-yellow-400">-12% from last week</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  label: 'Total Focus Time',
+                  value: totalFocusMinutes,
+                  detail: 'minutes in recent sessions',
+                  icon: Zap,
+                  color: 'text-blue-400',
+                },
+                {
+                  label: 'Avg Focus Score',
+                  value: `${averageFocusScore}%`,
+                  detail: 'recent work sessions',
+                  icon: BarChart3,
+                  color: 'text-purple-400',
+                },
+                {
+                  label: 'Study Sessions',
+                  value: completedSessions,
+                  detail: 'completed sessions',
+                  icon: CalendarCheck,
+                  color: 'text-teal-400',
+                },
+                {
+                  label: 'Distractions',
+                  value: totalDistractions,
+                  detail: 'recorded alerts',
+                  icon: AlertCircle,
+                  color: 'text-yellow-400',
+                },
+              ].map((stat, index) => {
+                const Icon = stat.icon;
+                return (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 + index * 0.1 }}
+                  >
+                    <Card className="border-border bg-card shadow-sm">
+                      <CardContent className="p-6">
+                        <div className="mb-4 flex items-center justify-between">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-muted/50">
+                            <Icon className={`h-6 w-6 ${stat.color}`} />
+                          </div>
+                          <TrendingUp className="h-4 w-4 text-green-400" />
+                        </div>
+                        <p className="text-sm text-secondary">{stat.label}</p>
+                        <p className="mt-2 text-3xl leading-none gradient-text">{stat.value}</p>
+                        <p className="mt-2 text-xs text-secondary">{stat.detail}</p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
             </div>
 
-            {/* Focus Minutes Chart */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
             >
-              <Card className="bg-card border-border shadow-sm">
+              <Card className="border-border bg-card shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-blue-400" />
+                    <Zap className="h-5 w-5 text-blue-400" />
                     Focus Minutes Trend
                   </CardTitle>
                 </CardHeader>
@@ -259,16 +330,15 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
               </Card>
             </motion.div>
 
-            {/* Distractions & Accuracy Chart */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
             >
-              <Card className="bg-card border-border shadow-sm">
+              <Card className="border-border bg-card shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-purple-400" />
+                    <BarChart3 className="h-5 w-5 text-purple-400" />
                     Performance Metrics
                   </CardTitle>
                 </CardHeader>
@@ -298,16 +368,12 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
             </motion.div>
           </TabsContent>
 
-          {/* Study Rhythm Tab */}
           <TabsContent value="rhythm" className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <Card className="bg-card border-border shadow-sm">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="border-border bg-card shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <CalendarCheck className="w-5 h-5 text-teal-400" />
+                    <CalendarCheck className="h-5 w-5 text-teal-400" />
                     Weekly Consistency
                   </CardTitle>
                 </CardHeader>
@@ -352,18 +418,18 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mt-6">
-                    <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl gradient-text mb-1">7d</p>
+                  <div className="mt-6 grid grid-cols-3 gap-4">
+                    <div className="rounded-lg bg-muted/50 p-4 text-center">
+                      <p className="mb-1 text-2xl gradient-text">{currentStreak}d</p>
                       <p className="text-xs text-secondary">Current Study Streak</p>
                     </div>
-                    <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl gradient-text mb-1">27</p>
-                      <p className="text-xs text-secondary">Sessions This Week</p>
+                    <div className="rounded-lg bg-muted/50 p-4 text-center">
+                      <p className="mb-1 text-2xl gradient-text">{completedSessions}</p>
+                      <p className="text-xs text-secondary">Recent Sessions</p>
                     </div>
-                    <div className="p-4 rounded-lg bg-muted/50 text-center">
-                      <p className="text-2xl gradient-text mb-1">6/7</p>
-                      <p className="text-xs text-secondary">Goal Days Hit</p>
+                    <div className="rounded-lg bg-muted/50 p-4 text-center">
+                      <p className="mb-1 text-2xl gradient-text">{goalDaysHit}</p>
+                      <p className="text-xs text-secondary">Study Days</p>
                     </div>
                   </div>
                 </CardContent>
@@ -371,66 +437,47 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
             </motion.div>
           </TabsContent>
 
-          {/* Insights Tab */}
           <TabsContent value="insights" className="space-y-6">
             <div>
-              <h2 className="text-xl mb-1">Study Insights</h2>
-              <p className="text-sm text-secondary">
-                Patterns from your recent focus sessions
-              </p>
+              <h2 className="mb-1 text-xl">Study Insights</h2>
+              <p className="text-sm text-secondary">Patterns from your recent focus sessions</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              {studyInsights.map((insight, index) => {
-                const Icon = insight.icon;
-                return (
-                  <motion.div
-                    key={insight.title}
-                    initial={{ opacity: 0, y: 18 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.08 }}
-                  >
-                    <Card className="bg-card border-border shadow-sm">
-                      <CardContent className="p-6">
-                        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-muted/50">
-                          <Icon className={`h-6 w-6 ${insight.color}`} />
-                        </div>
-                        <p className="text-sm text-secondary">{insight.title}</p>
-                        <p className="mt-2 text-2xl leading-none gradient-text">{insight.value}</p>
-                        <p className="mt-3 text-sm text-secondary">{insight.detail}</p>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            <Card className="bg-card border-border shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-purple-400" />
-                  Recommended Focus Plan
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-lg bg-muted/40 p-4">
-                  <p className="text-sm text-secondary">Next goal</p>
-                  <p className="mt-1 text-lg">150 focused minutes</p>
-                </div>
-                <div className="rounded-lg bg-muted/40 p-4">
-                  <p className="text-sm text-secondary">Best session length</p>
-                  <p className="mt-1 text-lg">45 minutes</p>
-                </div>
-                <div className="rounded-lg bg-muted/40 p-4">
-                  <p className="text-sm text-secondary">Distraction target</p>
-                  <p className="mt-1 text-lg">Under 4 per day</p>
-                </div>
-              </CardContent>
-            </Card>
+            {studyInsights.length ? (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                {studyInsights.map((insight, index) => {
+                  const Icon = insight.icon;
+                  return (
+                    <motion.div
+                      key={insight.title}
+                      initial={{ opacity: 0, y: 18 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.08 }}
+                    >
+                      <Card className="border-border bg-card shadow-sm">
+                        <CardContent className="p-6">
+                          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-muted/50">
+                            <Icon className={`h-6 w-6 ${insight.color}`} />
+                          </div>
+                          <p className="text-sm text-secondary">{insight.title}</p>
+                          <p className="mt-2 text-2xl leading-none gradient-text">{insight.value}</p>
+                          <p className="mt-3 text-sm text-secondary">{insight.detail}</p>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="p-6 text-sm text-secondary">
+                  No backend insights are available yet.
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
     </div>
   );
 }
-

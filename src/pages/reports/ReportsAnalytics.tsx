@@ -11,148 +11,236 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
-import {
   Home,
   Download,
   FileText,
   Calendar,
-  TrendingUp,
   Clock,
-  Target,
   AlertCircle,
   CheckCircle,
-  Eye,
   Award,
   BellRing,
+  Activity,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useFocus } from '../../context/FocusContext';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 
 interface ReportsAnalyticsProps {
   onNavigate: (page: string) => void;
 }
 
+type HeatmapDay = {
+  date: string;
+  minutes: number;
+  sessions: number;
+  distractions: number;
+  inRange: boolean;
+  column: number;
+  row: number;
+};
+
+type ReportRange = 'week' | 'month';
+
+const getSessionMinutes = (session: any) =>
+  Number(session?.actual_duration_minutes ?? session?.planned_duration_minutes ?? 0);
+
+const HEATMAP_DAYS_PER_WEEK = 7;
+const HEATMAP_LEVELS = [
+  { label: '0 min', min: 0, max: 0, color: '#e5e7eb' },
+  { label: '1-29 min', min: 1, max: 29, color: '#99f6e4' },
+  { label: '30-59 min', min: 30, max: 59, color: '#2dd4bf' },
+  { label: '60-89 min', min: 60, max: 89, color: '#0ea5e9' },
+  { label: '90+ min', min: 90, max: Infinity, color: '#2563eb' },
+];
+
+const formatLocalDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toDateKey = (value: unknown) => {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : formatLocalDateKey(date);
+};
+
+const toCsvCell = (value: unknown) => {
+  const text = value == null ? '' : String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+const downloadBlob = (filename: string, blob: Blob) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const downloadCsv = (filename: string, rows: unknown[][]) => {
+  const csv = rows.map((row) => row.map(toCsvCell).join(',')).join('\n');
+  downloadBlob(filename, new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+};
+
+const escapePdfText = (value: unknown) =>
+  String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+
+const createSimplePdfBlob = (title: string, lines: string[]) => {
+  const pageLines = 38;
+  const pages = Array.from(
+    { length: Math.max(1, Math.ceil(lines.length / pageLines)) },
+    (_, pageIndex) => lines.slice(pageIndex * pageLines, (pageIndex + 1) * pageLines),
+  );
+
+  const objects: string[] = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  const kids: string[] = [];
+
+  pages.forEach((page, index) => {
+    const pageObjectNumber = 4 + index * 2;
+    const contentObjectNumber = pageObjectNumber + 1;
+    kids.push(`${pageObjectNumber} 0 R`);
+
+    const content = [
+      'BT',
+      '/F1 16 Tf',
+      '72 760 Td',
+      `(${escapePdfText(index === 0 ? title : `${title} continued`)}) Tj`,
+      '/F1 10 Tf',
+      '0 -28 Td',
+      ...page.flatMap((line) => [`(${escapePdfText(line)}) Tj`, '0 -16 Td']),
+      'ET',
+    ].join('\n');
+
+    objects[pageObjectNumber - 1] =
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`;
+    objects[contentObjectNumber - 1] =
+      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+  });
+
+  objects[1] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages.length} >>`;
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: 'application/pdf' });
+};
+
 export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
-  const { totalFocusedMinutes, focusScore } = useFocus();
-  const [timeRange, setTimeRange] = useState<'week' | 'month'>('month');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [backendAnalytics, setBackendAnalytics] = useState<any | null>(null);
+  const [reportRange, setReportRange] = useState<ReportRange>('week');
   const [backendSessions, setBackendSessions] = useState<any[]>([]);
+  const [backendGoals, setBackendGoals] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Calendar heatmap data (last 90 days). Dummy data stays stable until backend data is connected.
-  const generateHeatmapData = () => {
-    const data = [];
+  const generateEmptyHeatmapData = (range: ReportRange) => {
+    const data: HeatmapDay[] = [];
     const today = new Date();
+    let startDate: Date;
+    let totalDays: number;
+    let rangeStart: Date;
+    let rangeEnd: Date;
+    let firstDayOffset = 0;
 
-    for (let i = 89; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const seed = i + 1;
-      const minutes = Math.round(18 + Math.abs(Math.sin(seed * 1.7)) * 142);
+    if (range === 'week') {
+      startDate = new Date(today);
+      const mondayOffset = (startDate.getDay() + 6) % HEATMAP_DAYS_PER_WEEK;
+      startDate.setDate(startDate.getDate() - mondayOffset);
+      totalDays = HEATMAP_DAYS_PER_WEEK;
+      rangeStart = new Date(startDate);
+      rangeEnd = new Date(startDate);
+      rangeEnd.setDate(rangeEnd.getDate() + HEATMAP_DAYS_PER_WEEK - 1);
+    } else {
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      rangeStart = new Date(monthStart);
+      startDate = new Date(monthStart);
+      firstDayOffset = (startDate.getDay() + 6) % HEATMAP_DAYS_PER_WEEK;
+
+      const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      rangeEnd = new Date(monthEnd);
+      totalDays = monthEnd.getDate();
+    }
+
+    for (let i = 0; i < totalDays; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      const weekdayOffset = (date.getDay() + 6) % HEATMAP_DAYS_PER_WEEK;
 
       data.push({
-        date: date.toISOString().split('T')[0],
-        minutes,
-        sessions: Math.max(1, Math.round(minutes / 45)),
-        goals: minutes > 95 ? 2 : minutes > 45 ? 1 : 0,
+        date: formatLocalDateKey(date),
+        minutes: 0,
+        sessions: 0,
+        distractions: 0,
+        inRange: date >= rangeStart && date <= rangeEnd,
+        column: Math.floor((firstDayOffset + i) / HEATMAP_DAYS_PER_WEEK) + 1,
+        row: weekdayOffset + 1,
       });
     }
     return data;
   };
 
-  const heatmapData = useMemo(() => generateHeatmapData(), []);
+  const heatmapData = useMemo(() => generateEmptyHeatmapData(reportRange), [reportRange]);
+  const heatmapWeeks = Math.max(1, ...heatmapData.map((day) => day.column));
   const displayedHeatmapData = useMemo(() => {
-    if (!backendSessions.length) return heatmapData;
-
-    const sessionBuckets = new Map<string, { date: string; minutes: number; sessions: number; goals: number }>();
+    const sessionBuckets = new Map<string, Omit<HeatmapDay, 'inRange' | 'column' | 'row'>>();
     backendSessions.forEach((session) => {
-      const rawDate = session?.started_at ?? session?.created_at;
-      if (!rawDate) return;
+      const date = toDateKey(session?.started_at ?? session?.created_at);
+      if (!date) return;
 
-      const date = new Date(rawDate).toISOString().split('T')[0];
-      const current = sessionBuckets.get(date) ?? { date, minutes: 0, sessions: 0, goals: 0 };
-      current.minutes += Number(session?.actual_duration_minutes ?? session?.planned_duration_minutes ?? 0);
+      const current = sessionBuckets.get(date) ?? { date, minutes: 0, sessions: 0, distractions: 0 };
+      current.minutes += getSessionMinutes(session);
       current.sessions += session?.completed ? 1 : 0;
-      current.goals += session?.completed ? 1 : 0;
+      current.distractions += Number(session?.distraction_count ?? 0);
       sessionBuckets.set(date, current);
     });
 
-    return heatmapData.map((day) => sessionBuckets.get(day.date) ?? { ...day, minutes: 0, sessions: 0, goals: 0 });
+    return heatmapData.map((day) =>
+      day.inRange
+        ? { ...day, ...(sessionBuckets.get(day.date) ?? {}) }
+        : { ...day, minutes: 0, sessions: 0, distractions: 0 },
+    );
   }, [backendSessions, heatmapData]);
-  const heatmapMonthLabels = useMemo(
-    () =>
-      [0, 30, 60, 89].map((index) =>
-        new Date(displayedHeatmapData[index].date).toLocaleString('en-US', { month: 'short' })
-      ),
-    [displayedHeatmapData]
-  );
+  const heatmapMonthLabels = useMemo(() => {
+    const columns = Array.from({ length: heatmapWeeks }, (_, columnIndex) => {
+      const column = columnIndex + 1;
+      const firstDayInColumn = displayedHeatmapData.find((day) => day.column === column);
+      if (!firstDayInColumn) return '';
+
+      const currentMonth = new Date(`${firstDayInColumn.date}T00:00:00`).toLocaleString('en-US', { month: 'short' });
+      const previousColumn = displayedHeatmapData.find((day) => day.column === column - 1);
+      if (!previousColumn) return currentMonth;
+
+      const previousMonth = new Date(`${previousColumn.date}T00:00:00`).toLocaleString('en-US', { month: 'short' });
+      return currentMonth === previousMonth ? '' : currentMonth;
+    });
+
+    return columns;
+  }, [displayedHeatmapData, heatmapWeeks]);
   const selectedDayData = selectedDay
     ? displayedHeatmapData.find((d) => d.date === selectedDay)
     : null;
-
-  // Chart data
-  const weeklyData = [
-    { day: 'Mon', focusTime: 87, distractions: 12, accuracy: 85 },
-    { day: 'Tue', focusTime: 102, distractions: 8, accuracy: 88 },
-    { day: 'Wed', focusTime: 95, distractions: 15, accuracy: 82 },
-    { day: 'Thu', focusTime: 120, distractions: 5, accuracy: 92 },
-    { day: 'Fri', focusTime: 78, distractions: 18, accuracy: 79 },
-    { day: 'Sat', focusTime: 145, distractions: 3, accuracy: 95 },
-    { day: 'Sun', focusTime: 110, distractions: 7, accuracy: 90 },
-  ];
-
-  const monthlyData = [
-    { week: 'Week 1', focusTime: 520, distractions: 45, accuracy: 85 },
-    { week: 'Week 2', focusTime: 580, distractions: 38, accuracy: 88 },
-    { week: 'Week 3', focusTime: 495, distractions: 52, accuracy: 82 },
-    { week: 'Week 4', focusTime: 650, distractions: 28, accuracy: 91 },
-  ];
-
-  const yearlyDataFallback = [
-    { month: 'Jan', focusTime: 2100, distractions: 180, accuracy: 84 },
-    { month: 'Feb', focusTime: 2300, distractions: 160, accuracy: 86 },
-    { month: 'Mar', focusTime: 2500, distractions: 145, accuracy: 88 },
-    { month: 'Apr', focusTime: 2200, distractions: 170, accuracy: 85 },
-    { month: 'May', focusTime: 2600, distractions: 130, accuracy: 90 },
-    { month: 'Jun', focusTime: 2400, distractions: 155, accuracy: 87 },
-    { month: 'Jul', focusTime: 2700, distractions: 120, accuracy: 92 },
-    { month: 'Aug', focusTime: 2550, distractions: 140, accuracy: 89 },
-    { month: 'Sep', focusTime: 2450, distractions: 150, accuracy: 88 },
-    { month: 'Oct', focusTime: 2650, distractions: 125, accuracy: 91 },
-  ];
-  void yearlyDataFallback;
-
-  const chartData = timeRange === 'week' ? weeklyData : monthlyData;
-  const displayedChartData =
-    timeRange === 'week' && Array.isArray(backendAnalytics?.daily_focus) && backendAnalytics.daily_focus.length
-      ? backendAnalytics.daily_focus.map((item: any) => ({
-          day: item.day,
-          focusTime: Number(item.minutes ?? 0),
-          distractions: Number(item.distractions ?? 0),
-          accuracy: Number(item.focus_score ?? 0),
-        }))
-      : timeRange === 'month' &&
-          Array.isArray(backendAnalytics?.weekly_consistency) &&
-          backendAnalytics.weekly_consistency.length
-        ? backendAnalytics.weekly_consistency.map((item: any) => ({
-            week: item.week,
-            focusTime: Number(item.focus_minutes ?? 0),
-            distractions: 0,
-            accuracy: Number(item.completed_sessions ?? 0),
-          }))
-        : chartData;
+  const todayDateKey = formatLocalDateKey(new Date());
 
   useEffect(() => {
     const loadReports = async () => {
@@ -162,17 +250,21 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
-        const [analyticsResponse, sessionsResponse] = await Promise.all([
-          axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.analytics), { headers }),
+        const [sessionsResponse, goalsResponse] = await Promise.all([
           axios.get(buildBackendUrl(BACKEND_ROUTES.study.sessions.history), { headers }),
+          axios.get(buildBackendUrl(BACKEND_ROUTES.study.goals.list), { headers }),
         ]);
 
-        setBackendAnalytics(analyticsResponse.data);
         if (Array.isArray(sessionsResponse.data)) {
           setBackendSessions(sessionsResponse.data);
         }
+        if (Array.isArray(goalsResponse.data)) {
+          setBackendGoals(goalsResponse.data);
+        }
+        setLoadError(null);
       } catch (error) {
-        console.warn('Using local reports fallback because backend reports failed.', error);
+        setLoadError('Could not load backend reports yet.');
+        console.warn('Backend reports failed.', error);
       }
     };
 
@@ -180,67 +272,137 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   }, []);
 
   const getIntensityColor = (minutes: number) => {
-    if (minutes === 0) return 'bg-muted';
-    if (minutes < 30) return 'bg-blue-900/30';
-    if (minutes < 60) return 'bg-blue-700/50';
-    if (minutes < 90) return 'bg-blue-500/70';
-    if (minutes < 120) return 'bg-purple-500/80';
-    return 'bg-purple-600';
+    const level = HEATMAP_LEVELS.find((item) => minutes >= item.min && minutes <= item.max);
+    return level?.color ?? HEATMAP_LEVELS[0].color;
   };
 
   const handleDayClick = (dayData: any) => {
     setSelectedDay(dayData.date);
   };
 
-  const handleTimeRangeChange = (value: string) => {
+  const handleReportRangeChange = (value: string) => {
     if (value === 'year') {
-      toast.info('Yearly analytics will be available once yearly backend data is connected.');
+      toast.info('Yearly reports will be available later.');
       return;
     }
 
-    setTimeRange(value as 'week' | 'month');
+    setReportRange(value as ReportRange);
+    setSelectedDay(null);
   };
 
   const handleExportPDF = () => {
-    toast.success('Opening print dialog. Choose Save as PDF.');
-    window.print();
-  };
-
-  const handleExportCSV = () => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      toast.success('Preparing CSV export...');
+    if (!backendSessions.length && !backendGoals.length) {
+      toast.info('No report data is available to export yet.');
       return;
     }
 
-    const exportUrl = buildBackendUrl(`${BACKEND_ROUTES.study.export}?format=csv`);
-    axios
-      .get(exportUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob',
-      })
-      .then((response) => {
-        const url = URL.createObjectURL(response.data);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'focusspark-study-export.csv';
-        link.click();
-        URL.revokeObjectURL(url);
-        toast.success('CSV export ready');
-      })
-      .catch((error) => {
-        console.warn('CSV export failed.', error);
-        toast.success('Preparing CSV export...');
-      });
+    const lines = [
+      `Exported At: ${new Date().toISOString()}`,
+      `Report Period: ${reportRange === 'week' ? 'This Week' : 'This Month'}`,
+      '',
+      'Summary',
+      `Total Focus Minutes: ${reportTotalFocusMinutes}`,
+      `Average Focus Score: ${reportAverageFocusScore}%`,
+      `Goals Completed: ${goalsCompleted}`,
+      `Distraction Alerts: ${reportTotalDistractions}`,
+      '',
+      'Activity',
+      ...displayedHeatmapData
+        .filter((day) => day.inRange)
+        .map((day) => `${day.date}: ${day.minutes} min, ${day.sessions} completed sessions, ${day.distractions} distractions`),
+      '',
+      'Goals',
+      ...(reportWindowGoals.length
+        ? reportWindowGoals.map((goal) =>
+            `${goal.title}: ${goal.current_minutes ?? 0}/${goal.target_minutes ?? 0} min, ${goal.completed ? 'completed' : 'in progress'}`,
+          )
+        : ['No goals in this report window.']),
+    ];
+
+    downloadBlob('focusspark-report.pdf', createSimplePdfBlob('FocusSpark Report Export', lines));
+    toast.success('PDF export ready');
+  };
+
+  const handleExportCSV = () => {
+    if (!backendSessions.length && !backendGoals.length) {
+      toast.info('No report data is available to export yet.');
+      return;
+    }
+
+    const rows: unknown[][] = [
+      ['FocusSpark Report Export'],
+      ['Exported At', new Date().toISOString()],
+      ['Report Period', reportRange === 'week' ? 'This Week' : 'This Month'],
+      [],
+      ['Summary'],
+      ['Total Focus Minutes', reportTotalFocusMinutes],
+      ['Average Focus Score', reportAverageFocusScore],
+      ['Goals Completed', goalsCompleted],
+      ['Distraction Alerts', reportTotalDistractions],
+      [],
+      [reportRange === 'week' ? 'Activity Heatmap This Week' : 'Activity Heatmap This Month'],
+      ['Date', 'Active', 'Focus Minutes', 'Completed Sessions', 'Distractions'],
+      ...displayedHeatmapData.filter((day) => day.inRange).map((day) => [
+        day.date,
+        day.minutes > 0 ? 'Yes' : 'No',
+        day.minutes,
+        day.sessions,
+        day.distractions,
+      ]),
+      [],
+      ['Goals'],
+      ['Title', 'Current Minutes', 'Target Minutes', 'Completed', 'Due Date'],
+      ...reportWindowGoals.map((goal) => [
+        goal.title,
+        goal.current_minutes ?? 0,
+        goal.target_minutes ?? 0,
+        goal.completed ? 'Yes' : 'No',
+        goal.due_date ?? '',
+      ]),
+    ];
+
+    downloadCsv('focusspark-report.csv', rows);
+    toast.success('CSV export ready');
   };
 
   // Summary stats
-  const totalFocusMinutes = displayedChartData.reduce((sum, d: any) => sum + d.focusTime, 0);
-  const avgFocusScore = Math.round(
-    displayedChartData.reduce((sum, d: any) => sum + d.accuracy, 0) / displayedChartData.length
+  const heatmapSessionDates = new Set(displayedHeatmapData.filter((day) => day.inRange).map((day) => day.date));
+  const reportWindowSessions = backendSessions.filter((session) => {
+    const date = toDateKey(session?.started_at ?? session?.created_at);
+    return date ? heatmapSessionDates.has(date) : false;
+  });
+  const reportWindowGoals = backendGoals.filter((goal) => {
+    const date = toDateKey(goal?.completed_at ?? goal?.updated_at ?? goal?.due_date);
+    return date ? heatmapSessionDates.has(date) : false;
+  });
+  const reportWindowWorkSessions = reportWindowSessions.filter(
+    (session) => session.completed && session.session_type === 'work',
   );
-  const totalDistractions = displayedChartData.reduce((sum, d: any) => sum + d.distractions, 0);
-  const goalsCompleted = 24;
+  const reportWindowFocusScores = reportWindowWorkSessions.map((session) =>
+    Number(session?.distraction_count ?? 0) === 0
+      ? 100
+      : Math.max(0, 100 - Number(session?.distraction_count ?? 0) * 10),
+  );
+  const reportWindowFocusMinutes = displayedHeatmapData.reduce(
+    (sum, day) => sum + (day.inRange ? day.minutes : 0),
+    0,
+  );
+  const reportWindowDistractions = displayedHeatmapData.reduce(
+    (sum, day) => sum + (day.inRange ? day.distractions : 0),
+    0,
+  );
+  const reportWindowAverageFocusScore = reportWindowFocusScores.length
+    ? Math.round(reportWindowFocusScores.reduce((sum, score) => sum + score, 0) / reportWindowFocusScores.length)
+    : 0;
+  const reportTotalFocusMinutes = reportWindowFocusMinutes;
+  const reportAverageFocusScore = reportWindowAverageFocusScore;
+  const reportTotalDistractions = reportWindowDistractions;
+  const goalsCompleted = reportWindowGoals.filter((goal) => goal.completed).length;
+  const activeDays = displayedHeatmapData.filter((day) => day.inRange && day.minutes > 0).length;
+  const completedHeatmapSessions = displayedHeatmapData.reduce(
+    (sum, day) => sum + (day.inRange ? day.sessions : 0),
+    0,
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -260,22 +422,24 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               <div>
                 <h1 className="gradient-text">Focus Reports</h1>
                 <p className="text-sm text-secondary">
-                  Track your progress and productivity trends
+                  Track your progress for the selected report period
                 </p>
               </div>
             </div>
 
-            {/* Time Range Selector */}
-            <Select value={timeRange} onValueChange={handleTimeRangeChange}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="year">This Year - Soon</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-secondary">
+              <span>Report period</span>
+              <Select value={reportRange} onValueChange={handleReportRangeChange}>
+                <SelectTrigger className="h-6 w-32 border-0 bg-transparent p-0 text-sm text-secondary shadow-none focus:ring-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="year">This Year - Later</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -294,11 +458,14 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
                 <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-500/10">
                   <Clock className="w-6 h-6 text-blue-400" />
                 </div>
-                <TrendingUp className="w-5 h-5 text-green-400" />
+                <Activity className="w-5 h-5 text-emerald-400" />
               </div>
-              <p className="text-3xl leading-none gradient-text">{totalFocusedMinutes || totalFocusMinutes}</p>
+              <p className="text-3xl leading-none gradient-text">{reportTotalFocusMinutes}</p>
               <p className="mt-2 text-sm text-secondary">Total Focused Minutes</p>
-              {totalFocusedMinutes > 0 && (
+              {loadError && (
+                <p className="text-xs text-yellow-400 mt-1">{loadError}</p>
+              )}
+              {!loadError && reportTotalFocusMinutes > 0 && (
                 <p className="text-xs text-focus-green mt-1">
                   Tracked with Focus Detection
                 </p>
@@ -310,12 +477,12 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
             <CardContent className="p-6">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-purple-500/10">
-                  <Target className="w-6 h-6 text-purple-400" />
+                  <Calendar className="w-6 h-6 text-purple-400" />
                 </div>
                 <CheckCircle className="w-5 h-5 text-green-400" />
               </div>
-              <p className="text-3xl leading-none gradient-text">{focusScore || avgFocusScore}%</p>
-              <p className="mt-2 text-sm text-secondary">Average Focus Score</p>
+              <p className="text-3xl leading-none gradient-text">{activeDays}</p>
+              <p className="mt-2 text-sm text-secondary">Active Days</p>
             </CardContent>
           </Card>
 
@@ -340,7 +507,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
                 </div>
                 <BellRing className="w-5 h-5 text-orange-400" />
               </div>
-              <p className="text-3xl leading-none gradient-text">{totalDistractions}</p>
+              <p className="text-3xl leading-none gradient-text">{reportTotalDistractions}</p>
               <p className="mt-2 text-sm text-secondary">Distraction Alerts</p>
             </CardContent>
           </Card>
@@ -357,15 +524,25 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-blue-400" />
-                  Activity Heatmap
+                  Active-Day Heatmap
                 </CardTitle>
-                <p className="text-sm text-secondary">Last 90 days</p>
+                <p className="text-sm text-secondary">
+                  {reportRange === 'week' ? 'This week' : 'This month'}
+                </p>
               </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto pb-4">
                 <div className="min-w-max">
-                  <div style={{ display: 'flex', marginLeft: 34, marginBottom: 8, width: 204, justifyContent: 'space-between' }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${heatmapWeeks}, 16px)`,
+                      columnGap: 5,
+                      marginLeft: 38,
+                      marginBottom: 10,
+                    }}
+                  >
                     {heatmapMonthLabels.map((month, index) => (
                       <span key={`${month}-${index}`} className="text-xs text-secondary">
                         {month}
@@ -377,26 +554,23 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
                       className="text-xs text-secondary"
                       style={{
                         display: 'grid',
-                        gridTemplateRows: 'repeat(7, 12px)',
-                        gap: 4,
-                        width: 22,
+                        gridTemplateRows: 'repeat(7, 16px)',
+                        rowGap: 5,
+                        width: 28,
                       }}
                     >
-                      <span />
-                      <span>Mon</span>
-                      <span />
-                      <span>Wed</span>
-                      <span />
-                      <span>Fri</span>
-                      <span />
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                        <span key={day} className="leading-4">
+                          {day}
+                        </span>
+                      ))}
                     </div>
                     <div
                       style={{
                         display: 'grid',
-                        gridAutoFlow: 'column',
-                        gridTemplateRows: 'repeat(7, 12px)',
-                        gridAutoColumns: '12px',
-                        gap: 4,
+                        gridTemplateColumns: `repeat(${heatmapWeeks}, 16px)`,
+                        gridTemplateRows: 'repeat(7, 16px)',
+                        gap: 5,
                       }}
                     >
                       {displayedHeatmapData.map((day, index) => (
@@ -406,12 +580,25 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: index * 0.005 }}
                           whileHover={{ scale: 1.3, zIndex: 10 }}
-                          className={`rounded-sm cursor-pointer ${getIntensityColor(
-                            day.minutes
-                          )} hover:ring-2 hover:ring-blue-500 transition-all relative group`}
-                          style={{ width: 12, height: 12 }}
+                          className={`relative cursor-pointer rounded-sm transition-all hover:ring-2 hover:ring-blue-500 ${
+                            day.date === todayDateKey
+                              ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-background'
+                              : ''
+                          }`}
+                          style={{
+                            gridColumn: day.column,
+                            gridRow: day.row,
+                            width: 16,
+                            height: 16,
+                            backgroundColor: getIntensityColor(day.minutes),
+                            border: day.minutes === 0 ? '1px solid rgba(100, 116, 139, 0.35)' : '1px solid transparent',
+                          }}
                           onClick={() => handleDayClick(day)}
-                          title={`${day.date}: ${day.minutes} min, ${day.sessions} sessions, ${day.goals} goals`}
+                          title={
+                            day.minutes > 0
+                              ? `${day.date}: active, ${day.minutes} min, ${day.sessions} completed sessions`
+                              : `${day.date}: no recorded activity`
+                          }
                         />
                       ))}
                     </div>
@@ -420,17 +607,23 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               </div>
 
               {/* Legend */}
-              <div className="flex items-center justify-between mt-4 text-xs text-secondary">
-                <span>Less</span>
-                <div className="flex gap-1">
-                  <div className="w-3 h-3 rounded-sm bg-muted" />
-                  <div className="w-3 h-3 rounded-sm bg-blue-900/30" />
-                  <div className="w-3 h-3 rounded-sm bg-blue-700/50" />
-                  <div className="w-3 h-3 rounded-sm bg-blue-500/70" />
-                  <div className="w-3 h-3 rounded-sm bg-purple-500/80" />
-                  <div className="w-3 h-3 rounded-sm bg-purple-600" />
-                </div>
-                <span>More</span>
+              <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-secondary">
+                {HEATMAP_LEVELS.map((item) => (
+                  <span key={item.label} className="flex items-center gap-1.5">
+                    <span
+                      className="h-3 w-3 rounded-sm"
+                      style={{
+                        backgroundColor: item.color,
+                        border: item.min === 0 ? '1px solid rgba(100, 116, 139, 0.35)' : '1px solid transparent',
+                      }}
+                    />
+                    {item.label}
+                  </span>
+                ))}
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded-sm ring-2 ring-blue-400 ring-offset-2 ring-offset-background" />
+                  Today
+                </span>
               </div>
 
               {selectedDay && (
@@ -443,7 +636,9 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
                     <strong>Selected:</strong> {selectedDay}
                   </p>
                   <p className="text-sm text-secondary mt-1">
-                    {selectedDayData?.minutes} min studied, {selectedDayData?.sessions} sessions, {selectedDayData?.goals} goals
+                    {selectedDayData && selectedDayData.minutes > 0
+                      ? `${selectedDayData.minutes} min studied, ${selectedDayData.sessions} completed sessions, ${selectedDayData.distractions} distractions`
+                      : 'No recorded activity'}
                   </p>
                 </motion.div>
               )}
@@ -451,215 +646,29 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
           </Card>
         </motion.div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Focus Time Chart */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="bg-card border-border shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-blue-400" />
-                  Focus Time Trend
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={displayedChartData}>
-                    <defs>
-                      <linearGradient id="colorFocus" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis
-                      dataKey={
-                        timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month'
-                      }
-                      stroke="#B0B8C4"
-                    />
-                    <YAxis stroke="#B0B8C4" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--popover)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--popover-foreground)',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="focusTime"
-                      stroke="url(#colorFocus)"
-                      strokeWidth={3}
-                      dot={{ fill: '#3b82f6', r: 5 }}
-                      activeDot={{ r: 7 }}
-                      fill="url(#colorFocus)"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Focus Accuracy Chart */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="bg-card border-border shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-purple-400" />
-                  Focus Accuracy
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={displayedChartData}>
-                    <defs>
-                      <linearGradient id="colorAccuracy" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.4} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis
-                      dataKey={
-                        timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month'
-                      }
-                      stroke="#B0B8C4"
-                    />
-                    <YAxis stroke="#B0B8C4" domain={[0, 100]} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--popover)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--popover-foreground)',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar dataKey="accuracy" fill="url(#colorAccuracy)" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Distractions Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="bg-card border-border shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-400" />
-                  Distraction Alerts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={displayedChartData}>
-                    <defs>
-                      <linearGradient id="colorDistraction" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.4} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis
-                      dataKey={
-                        timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month'
-                      }
-                      stroke="#B0B8C4"
-                    />
-                    <YAxis stroke="#B0B8C4" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--popover)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--popover-foreground)',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar
-                      dataKey="distractions"
-                      fill="url(#colorDistraction)"
-                      radius={[8, 8, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Combined Overview */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="bg-card border-border shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-teal-400" />
-                  Combined Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={displayedChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis
-                      dataKey={
-                        timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month'
-                      }
-                      stroke="#B0B8C4"
-                    />
-                    <YAxis stroke="#B0B8C4" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--popover)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--popover-foreground)',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="focusTime"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      name="Focus Time (min)"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="accuracy"
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      name="Accuracy (%)"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="distractions"
-                      stroke="#f59e0b"
-                      strokeWidth={2}
-                      name="Distractions"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
+        <section className="grid gap-6 lg:grid-cols-3">
+          <Card className="bg-card border-border shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-sm text-secondary">Recorded focus</p>
+              <p className="mt-2 text-3xl leading-none gradient-text">{reportTotalFocusMinutes}</p>
+              <p className="mt-2 text-sm text-secondary">minutes across the report window</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-sm text-secondary">Completed sessions</p>
+              <p className="mt-2 text-3xl leading-none gradient-text">{completedHeatmapSessions}</p>
+              <p className="mt-2 text-sm text-secondary">shown in the active-day heatmap</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-sm text-secondary">Average focus score</p>
+              <p className="mt-2 text-3xl leading-none gradient-text">{reportAverageFocusScore}%</p>
+              <p className="mt-2 text-sm text-secondary">use Analytics for trend details</p>
+            </CardContent>
+          </Card>
+        </section>
 
         {/* Export Panel */}
         <motion.div

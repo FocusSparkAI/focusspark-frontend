@@ -24,6 +24,7 @@ import {
 } from '../ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { playSoundForNewUnreadNotifications, unlockNotificationSound } from '../../utils/notificationSound';
 
 function resolveAssetUrl(url: string) {
   if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
@@ -44,6 +45,9 @@ type DashboardNotification = {
   read: boolean;
   created_at: string;
 };
+
+const PROFILE_NAME_STORAGE_KEY = 'focusspark-profile-name';
+const PROFILE_AVATAR_STORAGE_KEY = 'focusspark-profile-avatar-url';
 
 function getAuthHeaders() {
   const token = localStorage.getItem('auth_token');
@@ -77,14 +81,23 @@ function getNotificationIcon(type: string) {
   return Info;
 }
 
+function getNotificationIconClass(type: string) {
+  const normalized = type.toLowerCase();
+  if (normalized.includes('achievement')) return 'bg-purple-500/12 text-purple-500';
+  if (normalized.includes('reminder') || normalized.includes('pomodoro')) return 'bg-blue-500/12 text-blue-500';
+  if (normalized.includes('warning') || normalized.includes('alert')) return 'bg-amber-500/12 text-amber-500';
+  return 'bg-slate-500/12 text-slate-500';
+}
+
 export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardNavbarProps) {
   const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) ?? '');
+  const [displayName, setDisplayName] = useState(() => localStorage.getItem(PROFILE_NAME_STORAGE_KEY) ?? '');
 
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
+  const unreadNotifications = notifications.filter((notification) => !notification.read);
+  const unreadCount = unreadNotifications.length;
 
   const loadProfile = useCallback(async () => {
     try {
@@ -92,10 +105,27 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
         headers: getAuthHeaders(),
       });
       const data = response.data;
-      setAvatarUrl(resolveAssetUrl(data?.avatar_url ?? data?.avatarUrl ?? ''));
-      setDisplayName(data?.full_name ?? data?.fullName ?? data?.name ?? '');
+      const nextAvatarUrl = resolveAssetUrl(data?.avatar_url ?? data?.avatarUrl ?? '');
+      const nextDisplayName = data?.full_name ?? data?.fullName ?? data?.name ?? '';
+      setAvatarUrl(nextAvatarUrl);
+      setDisplayName(nextDisplayName);
+      if (nextAvatarUrl) localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, nextAvatarUrl);
+      else localStorage.removeItem(PROFILE_AVATAR_STORAGE_KEY);
+      if (nextDisplayName) localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextDisplayName);
+      else localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
     } catch {
       // Keep placeholder avatar on failure.
+    }
+  }, []);
+
+  const loadNotificationSoundPreference = useCallback(async () => {
+    try {
+      const response = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.settings.get), {
+        headers: getAuthHeaders(),
+      });
+      return response.data?.accessibility?.notification_sound !== false;
+    } catch {
+      return false;
     }
   }, []);
 
@@ -104,19 +134,25 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
     setNotificationsError(false);
 
     try {
+      const soundEnabled = await loadNotificationSoundPreference();
       const response = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.notifications.list), {
         headers: getAuthHeaders(),
         params: { limit: 10 },
       });
-      setNotifications(Array.isArray(response.data) ? response.data : []);
+      const nextNotifications = Array.isArray(response.data) ? response.data : [];
+      setNotifications(nextNotifications);
+      if (soundEnabled) {
+        playSoundForNewUnreadNotifications(nextNotifications);
+      }
     } catch {
       setNotificationsError(true);
     } finally {
       setNotificationsLoading(false);
     }
-  }, []);
+  }, [loadNotificationSoundPreference]);
 
   useEffect(() => {
+    unlockNotificationSound();
     void loadNotifications();
   }, [loadNotifications]);
 
@@ -252,19 +288,20 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
                 )}
 
                 {!notificationsLoading && notificationsError && (
-                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                    Could not load notifications.
-                  </div>
-                )}
-
-                {!notificationsLoading && !notificationsError && notifications.length === 0 && (
                   <div className="rounded-lg border border-border bg-background p-3 text-sm text-secondary">
-                    No important notifications yet.
+                    No notifications found.
                   </div>
                 )}
 
-                {!notificationsLoading && !notificationsError && notifications.map((notification) => {
+                {!notificationsLoading && !notificationsError && unreadNotifications.length === 0 && (
+                  <div className="rounded-lg border border-border bg-background p-3 text-sm text-secondary">
+                    No unread notifications.
+                  </div>
+                )}
+
+                {!notificationsLoading && !notificationsError && unreadNotifications.map((notification) => {
                   const Icon = getNotificationIcon(notification.type);
+                  const iconClass = getNotificationIconClass(notification.type);
 
                   return (
                     <button
@@ -278,7 +315,9 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                        <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${iconClass}`}>
+                          <Icon className="h-5 w-5" />
+                        </span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium leading-5">{notification.title}</p>
                           <p className="mt-1 text-sm leading-5 text-secondary">

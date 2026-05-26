@@ -22,7 +22,6 @@ import {
 } from '../../components/ui/dialog';
 import {
   Home,
-  User,
   Edit2,
   Check,
   X,
@@ -36,6 +35,7 @@ import {
 import { toast } from 'sonner';
 import axios from 'axios';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { DeleteAccountDialog } from '../../components/account/DeleteAccountDialog';
 
 interface ProfileScreenProps {
   onNavigate: (page: string) => void;
@@ -75,7 +75,6 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
   const [tempBio, setTempBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   const updateProfile = async (updates: Record<string, string>) => {
     const token = localStorage.getItem('auth_token');
@@ -102,7 +101,6 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
     const fetchProfile = async () => {
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        setIsProfileLoading(false);
         toast.error('Not authenticated');
         onNavigate('signin');
         return;
@@ -126,8 +124,6 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
       } catch (err: any) {
         const message = err?.response?.data?.message || err?.message || 'Failed to load profile';
         toast.error(message);
-      } finally {
-        setIsProfileLoading(false);
       }
     };
 
@@ -244,7 +240,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
         const url = buildBackendUrl(BACKEND_ROUTES.profile.delete);
         await axios.delete(url, { headers: { Authorization: `Bearer ${token}` } });
 
-        localStorage.removeItem('auth_token');
+        localStorage.clear();
         toast.success('Account deleted. Redirecting to homepage...');
         setShowDeleteAccountDialog(false);
         setDeleteConfirmStep(1);
@@ -623,58 +619,13 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
         </DialogContent>
       </Dialog>
 
-      {/* Delete Account Confirmation Dialog */}
-      <Dialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
-        <DialogContent className="bg-card border-2 border-red-500/30">
-          <motion.div
-            animate={deleteConfirmStep === 2 ? { x: [0, -5, 5, -5, 5, 0] } : {}}
-            transition={{ duration: 0.5 }}
-          >
-            <DialogHeader>
-              <DialogTitle className="text-red-400 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                {deleteConfirmStep === 1 ? 'Delete Account?' : 'Are you absolutely sure?'}
-              </DialogTitle>
-              <DialogDescription>
-                {deleteConfirmStep === 1 ? (
-                  <>
-                    Deleting your account will permanently remove all stored data including:
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>All focus session history</li>
-                      <li>Reports and progress data</li>
-                      <li>Achievements and badges</li>
-                      <li>Focus session records</li>
-                      <li>AI chat history</li>
-                    </ul>
-                    <p className="mt-3 font-semibold text-red-400">This action cannot be undone.</p>
-                  </>
-                ) : (
-                  <p className="text-red-400 font-semibold">
-                    This is your final confirmation. All your data will be permanently deleted. There is no way to recover it.
-                  </p>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteAccountDialog(false);
-                  setDeleteConfirmStep(1);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleDeleteAccount}
-                className="bg-red-500 hover:bg-red-600"
-              >
-                {deleteConfirmStep === 1 ? 'Continue' : 'Delete Forever'}
-              </Button>
-            </DialogFooter>
-          </motion.div>
-        </DialogContent>
-      </Dialog>
+      <DeleteAccountDialog
+        open={showDeleteAccountDialog}
+        step={deleteConfirmStep}
+        onOpenChange={setShowDeleteAccountDialog}
+        onStepChange={setDeleteConfirmStep}
+        onDelete={handleDeleteAccount}
+      />
     </div>
   );
 }

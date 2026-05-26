@@ -1,23 +1,44 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { motion } from 'motion/react';
 import {
   ArrowRight,
+  Award,
   BarChart3,
   Bell,
+  BookOpen,
+  Boxes,
+  Brain,
+  Calendar,
+  CalendarDays,
   CalendarCheck,
   CheckCircle2,
+  ClipboardCheck,
+  Clock,
   Flame,
+  Layers,
   LineChart,
+  ListChecks,
+  Moon,
+  PlayCircle,
   Settings,
   ShieldCheck,
   Sparkles,
+  Star,
+  Sunrise,
+  Target,
   Trophy,
+  Upload,
   User,
+  UserCheck,
+  Zap,
+  TrendingUp,
 } from 'lucide-react';
 import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
 import { DashboardNavbar } from '../../components/layout/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 
 interface StudentDashboardProps {
   onNavigate: (page: string) => void;
@@ -25,45 +46,300 @@ interface StudentDashboardProps {
   onToggleTheme: () => void;
 }
 
+const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+type AchievementSummary = {
+  id: string;
+  title: string;
+  description: string;
+  badgeIcon: string;
+  unlocked: boolean;
+  unlockedAt?: string;
+};
+
+type AchievementPopup = {
+  achievement: AchievementSummary;
+};
+
+const PROFILE_NAME_STORAGE_KEY = 'focusspark-profile-name';
+
+const iconByBadgeName: Record<string, any> = {
+  award: Award,
+  'book-open': BookOpen,
+  boxes: Boxes,
+  brain: Brain,
+  calendar: Calendar,
+  'calendar-days': CalendarDays,
+  clock: Clock,
+  'clipboard-check': ClipboardCheck,
+  flame: Flame,
+  layers: Layers,
+  'list-checks': ListChecks,
+  moon: Moon,
+  'play-circle': PlayCircle,
+  'shield-check': ShieldCheck,
+  star: Star,
+  sunrise: Sunrise,
+  target: Target,
+  trophy: Trophy,
+  'trending-up': TrendingUp,
+  upload: Upload,
+  'user-check': UserCheck,
+  zap: Zap,
+};
+
+function achievementPopupSeenKey(achievement: AchievementSummary) {
+  return `focusspark-achievement-popup-seen-${achievement.id}-${achievement.unlockedAt ?? 'no-date'}`;
+}
+
+function readCachedProfileName() {
+  return localStorage.getItem(PROFILE_NAME_STORAGE_KEY) ?? '';
+}
+
+function AchievementCelebrationPopup({
+  isVisible,
+  achievement,
+  Icon,
+  onClose,
+  onViewBadges,
+}: {
+  isVisible: boolean;
+  achievement: AchievementSummary | null;
+  Icon: any;
+  onClose: () => void;
+  onViewBadges: () => void;
+}) {
+  useEffect(() => {
+    if (!isVisible || !achievement) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const colors = ['#3b82f6', '#8b5cf6', '#14b8a6', '#f59e0b', '#ef4444'];
+    const particles: HTMLDivElement[] = [];
+
+    for (let index = 0; index < 50; index += 1) {
+      const particle = document.createElement('div');
+      particle.className = 'confetti';
+      particle.style.cssText = `
+        position: fixed;
+        width: ${Math.random() > 0.5 ? 10 : 7}px;
+        height: ${Math.random() > 0.5 ? 10 : 14}px;
+        border-radius: ${Math.random() > 0.55 ? '999px' : '2px'};
+        background: ${colors[Math.floor(Math.random() * colors.length)]};
+        left: ${Math.random() * 100}vw;
+        top: -20px;
+        pointer-events: none;
+        z-index: 9999;
+      `;
+      document.body.appendChild(particle);
+      particles.push(particle);
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      particles.forEach((particle) => particle.remove());
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      particles.forEach((particle) => particle.remove());
+    };
+  }, [achievement, isVisible]);
+
+  if (!isVisible || !achievement) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-md">
+      <motion.div
+        initial={{ scale: 0, rotate: -180, opacity: 0 }}
+        animate={{ scale: 1, rotate: 0, opacity: 1 }}
+        transition={{ type: 'spring', damping: 15 }}
+        className="w-full max-w-xl"
+      >
+        <Card className="w-full border-blue-500/50 bg-card shadow-2xl">
+          <CardContent className="relative overflow-hidden rounded-lg bg-gradient-to-br from-blue-500/10 via-card to-purple-500/10 px-6 py-8 text-center sm:px-10">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 blur-3xl" />
+
+            <div className="relative z-10">
+              <motion.div
+                animate={{
+                  scale: [1, 1.1, 1],
+                  rotate: [0, 5, -5, 0],
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="mb-4"
+              >
+                <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white shadow-xl shadow-blue-500/25">
+                  <Icon className="h-16 w-16 stroke-[2.4]" />
+                </div>
+              </motion.div>
+
+              <h2 className="gradient-text mb-2 text-3xl font-semibold tracking-normal">Achievement Unlocked!</h2>
+              <p className="mb-4 text-xl text-foreground">{achievement.title}</p>
+
+              {achievement.description && (
+                <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+                  <div className="flex items-start justify-center gap-2">
+                    <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
+                    <p className="text-sm leading-6 text-secondary">{achievement.description}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  onClick={onViewBadges}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90"
+                >
+                  View Achievements
+                </Button>
+                <Button variant="outline" onClick={onClose} className="flex-1">
+                  Close
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
 export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDashboardProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState<any | null>(null);
+  const [profileName, setProfileName] = useState(readCachedProfileName);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [achievementPopup, setAchievementPopup] = useState<AchievementPopup | null>(null);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      const headers = { Authorization: `Bearer ${token}` };
+
+      try {
+        const dashboardResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.dashboard), { headers });
+
+        setDashboardStats(dashboardResponse.data);
+        setLoadError(null);
+      } catch (error) {
+        setLoadError('Could not load dashboard stats yet.');
+        console.warn('Dashboard stats failed.', error);
+      }
+
+      try {
+        const achievementsResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.achievements.list), { headers });
+
+        const achievements = Array.isArray(achievementsResponse.data)
+          ? achievementsResponse.data.map((item: any): AchievementSummary => ({
+              id: String(item?.id ?? item?.key ?? item?.title),
+              title: item?.title ?? item?.achievement_title ?? 'Achievement',
+              description: item?.description ?? '',
+              badgeIcon: String(item?.badge_icon ?? '').toLowerCase(),
+              unlocked: Boolean(item?.unlocked),
+              unlockedAt: item?.unlocked_at,
+            }))
+          : [];
+
+        const unlockedAchievement = achievements
+          .filter((achievement) => achievement.unlocked)
+          .sort((left, right) => {
+            const rightTime = right.unlockedAt ? new Date(right.unlockedAt).getTime() : 0;
+            const leftTime = left.unlockedAt ? new Date(left.unlockedAt).getTime() : 0;
+            return rightTime - leftTime;
+          })
+          .find((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
+
+        if (unlockedAchievement) {
+          setAchievementPopup({ achievement: unlockedAchievement });
+        }
+      } catch (error) {
+        console.warn('Achievement unlock popup failed.', error);
+      }
+
+      try {
+        const profileResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
+          headers,
+        });
+        const nextProfileName =
+          profileResponse.data?.full_name ??
+          profileResponse.data?.fullName ??
+          profileResponse.data?.name ??
+          '';
+        setProfileName(nextProfileName);
+        if (nextProfileName) {
+          localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextProfileName);
+        } else {
+          localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
+        }
+      } catch {
+        setProfileName(readCachedProfileName());
+      }
+    };
+
+    loadDashboard();
+  }, []);
+
+  const dailyFocus = useMemo(
+    () => (Array.isArray(dashboardStats?.daily_focus) ? dashboardStats.daily_focus : []),
+    [dashboardStats],
+  );
+  const maxDailyMinutes = Math.max(1, ...dailyFocus.map((day: any) => Number(day.minutes ?? 0)));
+  const weeklyBars = dayLabels.map((label, index) => {
+    const day = dailyFocus[index];
+    const minutes = Number(day?.minutes ?? 0);
+    return {
+      label: day?.day?.slice(0, 1) ?? label,
+      height: minutes > 0 ? Math.max(8, Math.round((minutes / maxDailyMinutes) * 128)) : 0,
+      minutes,
+    };
+  });
+  const weeklyFocusHours = Number(dashboardStats?.weekly_focus_hours ?? 0);
+  const focusScore = Number(dashboardStats?.focus_score ?? 0);
+  const currentStreak = Number(dashboardStats?.current_streak ?? 0);
+  const badgesEarned = Number(dashboardStats?.badges_earned ?? 0);
+  const totalBadges = Number(dashboardStats?.total_badges ?? 0);
+  const badgeProgress = totalBadges ? Math.round((badgesEarned / totalBadges) * 100) : 0;
+  const recentActivity = Array.isArray(dashboardStats?.recent_activity) ? dashboardStats.recent_activity : [];
+  const AchievementPopupIcon = achievementPopup
+    ? iconByBadgeName[achievementPopup.achievement.badgeIcon] ?? Award
+    : Award;
+
+  const closeAchievementPopup = () => {
+    if (achievementPopup) {
+      localStorage.setItem(achievementPopupSeenKey(achievementPopup.achievement), 'true');
+    }
+    setAchievementPopup(null);
+  };
 
   const stats = [
     {
       label: 'Weekly Focus',
-      value: '8.7h',
-      detail: '+12% from last week',
+      value: `${weeklyFocusHours}h`,
+      detail: 'last 7 days',
       icon: BarChart3,
       color: 'text-teal-400',
     },
     {
       label: 'Focus Score',
-      value: '85%',
-      detail: 'Strong consistency',
+      value: `${focusScore}%`,
+      detail: 'recent work sessions',
       icon: LineChart,
       color: 'text-blue-400',
     },
     {
       label: 'Current Streak',
-      value: '7d',
-      detail: 'Keep momentum going',
+      value: `${currentStreak}d`,
+      detail: 'active study streak',
       icon: Flame,
       color: 'text-orange-400',
     },
     {
       label: 'Badges Earned',
-      value: '4/12',
-      detail: '2 close to unlock',
+      value: `${badgesEarned}/${totalBadges}`,
+      detail: 'achievement collection',
       icon: Trophy,
       color: 'text-yellow-400',
     },
-  ];
-
-  const weeklyBars = [64, 76, 52, 88, 70, 92, 58];
-  const recentActivity = [
-    { label: 'Weekly report generated', time: 'Today', icon: BarChart3, color: 'text-teal-400' },
-    { label: 'New achievement progress recorded', time: 'Yesterday', icon: Trophy, color: 'text-yellow-400' },
-    { label: 'Profile preferences reviewed', time: '2 days ago', icon: User, color: 'text-purple-400' },
   ];
 
   return (
@@ -80,6 +356,12 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
 
         <main className="flex-1 p-6 lg:p-8 overflow-auto">
           <div className="max-w-7xl mx-auto">
+            {loadError && (
+              <div className="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">
+                {loadError}
+              </div>
+            )}
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -91,7 +373,9 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                     <Sparkles className="h-4 w-4" />
                     Progress Command Center
                   </div>
-                  <h1 className="text-4xl mb-3">Welcome back, Learner!</h1>
+                  <h1 className="text-4xl mb-3">
+                    Welcome back{profileName ? `, ${profileName}` : ''}!
+                  </h1>
                   <p className="max-w-2xl text-secondary">
                     See your progress at a glance, review reports, track achievements, and keep your account settings in shape.
                   </p>
@@ -177,7 +461,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                           paddingBottom: '1px',
                         }}
                       >
-                        {weeklyBars.map((height, index) => (
+                        {weeklyBars.map((bar, index) => (
                           <div
                             key={index}
                             style={{
@@ -197,8 +481,9 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                                 borderTopRightRadius: '10px',
                               }}
                               initial={{ height: 0 }}
-                              animate={{ height: `${Math.round(height * 1.28)}px` }}
+                              animate={{ height: `${bar.height}px` }}
                               transition={{ delay: 0.25 + index * 0.05, duration: 0.5 }}
+                              title={`${bar.label}: ${bar.minutes} focused minutes`}
                             />
                           </div>
                         ))}
@@ -213,9 +498,9 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                           alignItems: 'center',
                         }}
                       >
-                        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
+                        {weeklyBars.map((bar, index) => (
                           <span
-                            key={`${day}-${index}`}
+                            key={`${bar.label}-${index}`}
                             className="text-xs text-secondary"
                             style={{
                               display: 'block',
@@ -223,7 +508,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                               lineHeight: '24px',
                             }}
                           >
-                            {day}
+                            {bar.label}
                           </span>
                         ))}
                       </div>
@@ -261,18 +546,18 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                   <CardContent className="space-y-5">
                     <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-6 py-4">
                       <p className="mb-2 text-sm leading-5 text-secondary">Current streak</p>
-                      <p className="text-4xl leading-none gradient-text">7 days</p>
+                      <p className="text-4xl leading-none gradient-text">{currentStreak} days</p>
                     </div>
                     <div>
                       <div className="mb-2 flex justify-between text-sm">
                         <span className="text-secondary">Badge collection</span>
-                        <span>4/12</span>
+                        <span>{badgesEarned}/{totalBadges}</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-muted">
                         <motion.div
                           className="h-full bg-gradient-to-r from-yellow-400 to-orange-500"
                           initial={{ width: 0 }}
-                          animate={{ width: '33%' }}
+                          animate={{ width: `${badgeProgress}%` }}
                           transition={{ delay: 0.35, duration: 0.6 }}
                         />
                       </div>
@@ -351,26 +636,40 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {recentActivity.map((activity) => {
-                    const Icon = activity.icon;
-                    return (
-                      <div key={activity.label} className="flex items-start gap-3">
+                  {recentActivity.length ? (
+                    recentActivity.map((activity: any, index: number) => (
+                      <div key={`${activity.label}-${index}`} className="flex items-start gap-3">
                         <div className="rounded-lg bg-muted/50 p-2">
-                          <Icon className={`h-4 w-4 ${activity.color}`} />
+                          <CalendarCheck className="h-4 w-4 text-blue-400" />
                         </div>
                         <div>
                           <p className="text-sm">{activity.label}</p>
-                          <p className="text-xs text-secondary">{activity.time}</p>
+                          <p className="text-xs text-secondary">
+                            {activity.time ? new Date(activity.time).toLocaleString() : 'Recent'}
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
+                    ))
+                  ) : (
+                    <p className="text-sm text-secondary">No recent backend activity yet.</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </div>
         </main>
       </div>
+
+      <AchievementCelebrationPopup
+        isVisible={achievementPopup !== null}
+        achievement={achievementPopup?.achievement ?? null}
+        Icon={AchievementPopupIcon}
+        onClose={closeAchievementPopup}
+        onViewBadges={() => {
+          closeAchievementPopup();
+          onNavigate('achievements');
+        }}
+      />
     </div>
   );
 }

@@ -1,108 +1,97 @@
 # FocusSpark Frontend
 
-FocusSpark Frontend is the web application for the FocusSpark project. It contains the public landing pages, authentication flows, onboarding, and the student dashboard (reports, analytics, achievements, profile, and settings).
+FocusSpark Frontend is the public web application for the FocusSpark project. It includes the marketing pages, authentication, onboarding, dashboard, achievements, reports, analytics, notifications, profile, and settings screens.
 
-This repo does NOT include the AI chat, quiz, or flashcard browser-extension frontend — those live in separate projects.
+The browser-extension study workspace lives in `FocusSpark-Extension`.
 
-**Tech stack:** React, TypeScript, Vite, Tailwind CSS, shadcn/ui components, Recharts, Axios
+## Tech Stack
 
-**Quick links:** [src/](src) — main app source, [build/](build) — production output
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS 4
+- shadcn/ui-style components
+- Recharts
+- Axios
+- Motion
+- Sonner
 
-## Prerequisites
+## Current Features
 
-- Node.js 18+ (or the version specified in your `.nvmrc` if present)
-- npm (or yarn/pnpm)
+- Public landing, About, Contact, and Science pages
+- Public Science white paper download at `/focusspark-science-white-paper.pdf`
+- Sign up, sign in, forgot password, and protected routes
+- Onboarding flow
+- Student dashboard with profile avatar support
+- Achievements, analytics, and focus reports backed by study APIs
+- Reports CSV export and browser-generated PDF export
+- Notifications page and web dashboard bell dropdown
+- Settings for account, last login display, Pomodoro timings, focus detection, extension notifications, appearance, and privacy
 
 ## Environment
 
-Create a `.env` file in the project root containing at least:
+Create a `.env` file in this project root:
 
 ```env
 VITE_BACKEND_BASE_URL=http://127.0.0.1:8000
 ```
 
-Use your production backend URL when deploying. The app expects `VITE_BACKEND_BASE_URL` to be set and will fail fast without it.
+The frontend expects `VITE_BACKEND_BASE_URL` to be set.
 
-## Install & Run (local development)
-
-Install dependencies:
+## Install and Run
 
 ```bash
 npm install
-```
-
-Start the dev server (Vite):
-
-```bash
 npm run dev
 ```
 
-Open the app at the URL Vite prints (usually `http://localhost:5173`).
+Open the URL printed by Vite. This project configures Vite to use `http://localhost:3000`.
 
-## Build & Preview (production)
-
-Build the production bundle:
+## Build and Preview
 
 ```bash
 npm run build
-```
-
-Preview the production build locally:
-
-```bash
 npm run preview
 ```
 
-The built files are placed in the `build/` directory — serve that folder from your static host or CDN.
+The production output is written to `build/`.
 
-## Available NPM scripts
-
-- `npm run dev` — start Vite dev server
-- `npm run build` — create production build
-- `npm run preview` — preview production build locally
-
-## Project structure (important folders)
+## Important Files
 
 ```text
-src/
-  main.tsx              # React entry
-  app/
-    App.tsx            # App shell + routing
-  components/           # Reusable UI components (layout, ui)
-  pages/                # Route pages (auth, dashboard, home, onboarding, etc.)
-  config/backend.ts     # Backend API helpers / base URL
-  context/              # React contexts (FocusContext)
-  hooks/                # Reusable hooks
-  styles/               # global Tailwind/CSS
-  utils/                # small utilities
+src/app/App.tsx                         # Routing and app shell
+src/config/backend.ts                   # Backend route map and URL helper
+src/pages/auth/SignUpPage.tsx           # Signup flow
+src/pages/static/SciencePage.tsx        # Public Science page and PDF download
+src/pages/settings/SettingsScreen.tsx   # Account and user preferences
+src/pages/notifications/NotificationsPage.tsx
+src/pages/reports/ReportsAnalytics.tsx
+src/components/layout/DashboardNavbar.tsx
+public/focusspark-science-white-paper.pdf
 ```
 
-## Backend integration
+## Backend Integration
 
-The frontend calls the backend using `VITE_BACKEND_BASE_URL`. Endpoints used by the app include authentication and profile endpoints (e.g., `/auth/login`, `/auth/signup`, `/auth/profile`). See `src/config/backend.ts` for client setup.
+The app calls the FastAPI backend through `src/config/backend.ts`.
 
-## Notes & tips
+Main route groups used:
 
-- If `npm run dev` exits with errors, check your `VITE_BACKEND_BASE_URL` and that the backend is reachable.
-- Tailwind classes are managed in `src/styles` and through shadcn/ui component patterns.
+- `/auth/login`
+- `/auth/signup`
+- `/auth/profile`
+- `/auth/password`
+- `/study/settings`
+- `/study/notifications`
+- `/study/sessions/history`
+- `/study/stats/summary`
+- `/study/stats/analytics`
+- `/study/stats/dashboard`
+- `/study/goals`
+- `/study/achievements`
 
-## Contributing
+## Notes
 
-If you want to contribute:
-
-1. Fork and create a topic branch.
-2. Run the app locally and verify pages you touched.
-3. Open a pull request with a clear description.
-
-## Next steps
-
-- Add a `CONTRIBUTING.md` and CI checks if you want a stricter workflow.
-
----
-
-If you'd like, I can also:
-
-- add a short development checklist to `README.md`
-- create a `docs/` folder with example requests for the backend
-
-
+- The Science white paper is public and can be downloaded without login.
+- The web dashboard bell dropdown is independent from the extension notification setting.
+- The settings page label "Extension Notifications" controls extension notification behavior through the backend `notifications_enabled` setting.
+- Signup styling uses the shared dark input rules plus local `shake` and `confetti` animation classes from `src/styles/globals.css`.
