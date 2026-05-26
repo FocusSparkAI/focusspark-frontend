@@ -13,6 +13,7 @@ import {
   Clock,
   CalendarCheck,
   AlertCircle,
+  Target,
 } from 'lucide-react';
 import {
   LineChart,
@@ -128,13 +129,14 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
     Number(backendAnalytics?.total_distractions ?? backendSummary?.total_distractions ?? 0) ||
     focusData.reduce((sum, item) => sum + item.distractions, 0);
   const currentStreak = Number(backendAnalytics?.current_streak ?? backendSummary?.current_streak ?? 0);
-
-  const goalDaysHit = focusData.filter((item) => item.minutes > 0).length;
+  const goalsCompleted = Number(backendAnalytics?.goals_completed ?? backendSummary?.goals_completed ?? 0);
+  const goalsIncomplete = Number(backendAnalytics?.goals_incomplete ?? backendSummary?.goals_incomplete ?? 0);
+  const goalCompletionRate = Number(backendAnalytics?.goal_completion_rate ?? backendSummary?.goal_completion_rate ?? 0);
 
   const studyInsights = useMemo(() => {
     const backendInsights = Array.isArray(backendAnalytics?.insights) ? backendAnalytics.insights : [];
-    const icons = [CalendarCheck, Clock, AlertCircle];
-    const colors = ['text-teal-400', 'text-blue-400', 'text-yellow-400'];
+    const icons = [CalendarCheck, Clock, AlertCircle, Target];
+    const colors = ['text-teal-400', 'text-blue-400', 'text-yellow-400', 'text-green-400'];
 
     return backendInsights.map((insight: any, index: number) => ({
       title: insight.title ?? 'Study insight',
@@ -161,6 +163,9 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
       ['Completed Sessions', completedSessions],
       ['Distractions', totalDistractions],
       ['Current Study Streak', currentStreak],
+      ['Goals Completed', goalsCompleted],
+      ['Goals Incomplete', goalsIncomplete],
+      ['Goal Completion Rate', `${goalCompletionRate}%`],
       [],
       ['Daily Focus'],
       ['Day', 'Focus Minutes', 'Distractions', 'Focus Score'],
@@ -249,11 +254,11 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
                   color: 'text-teal-400',
                 },
                 {
-                  label: 'Distractions',
-                  value: totalDistractions,
-                  detail: 'recorded alerts',
-                  icon: AlertCircle,
-                  color: 'text-yellow-400',
+                  label: 'Goal Completion',
+                  value: `${goalCompletionRate}%`,
+                  detail: `${goalsCompleted} done, ${goalsIncomplete} incomplete`,
+                  icon: Target,
+                  color: 'text-green-400',
                 },
               ].map((stat, index) => {
                 const Icon = stat.icon;
@@ -428,8 +433,8 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
                       <p className="text-xs text-secondary">Recent Sessions</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-4 text-center">
-                      <p className="mb-1 text-2xl gradient-text">{goalDaysHit}</p>
-                      <p className="text-xs text-secondary">Study Days</p>
+                      <p className="mb-1 text-2xl gradient-text">{goalCompletionRate}%</p>
+                      <p className="text-xs text-secondary">Goal Completion</p>
                     </div>
                   </div>
                 </CardContent>

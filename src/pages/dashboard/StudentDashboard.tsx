@@ -29,7 +29,6 @@ import {
   Target,
   Trophy,
   Upload,
-  User,
   UserCheck,
   Zap,
   TrendingUp,
@@ -210,72 +209,72 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   const [loadError, setLoadError] = useState<string | null>(null);
   const [achievementPopup, setAchievementPopup] = useState<AchievementPopup | null>(null);
 
+  const loadDashboard = async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const headers = { Authorization: `Bearer ${token}` };
+
+    try {
+      const dashboardResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.dashboard), { headers });
+
+      setDashboardStats(dashboardResponse.data);
+      setLoadError(null);
+    } catch (error) {
+      setLoadError('Could not load dashboard stats yet.');
+      console.warn('Dashboard stats failed.', error);
+    }
+
+    try {
+      const achievementsResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.achievements.list), { headers });
+
+      const achievements = Array.isArray(achievementsResponse.data)
+        ? achievementsResponse.data.map((item: any): AchievementSummary => ({
+            id: String(item?.id ?? item?.key ?? item?.title),
+            title: item?.title ?? item?.achievement_title ?? 'Achievement',
+            description: item?.description ?? '',
+            badgeIcon: String(item?.badge_icon ?? '').toLowerCase(),
+            unlocked: Boolean(item?.unlocked),
+            unlockedAt: item?.unlocked_at,
+          }))
+        : [];
+
+      const unlockedAchievement = achievements
+        .filter((achievement) => achievement.unlocked)
+        .sort((left, right) => {
+          const rightTime = right.unlockedAt ? new Date(right.unlockedAt).getTime() : 0;
+          const leftTime = left.unlockedAt ? new Date(left.unlockedAt).getTime() : 0;
+          return rightTime - leftTime;
+        })
+        .find((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
+
+      if (unlockedAchievement) {
+        setAchievementPopup({ achievement: unlockedAchievement });
+      }
+    } catch (error) {
+      console.warn('Achievement unlock popup failed.', error);
+    }
+
+    try {
+      const profileResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
+        headers,
+      });
+      const nextProfileName =
+        profileResponse.data?.full_name ??
+        profileResponse.data?.fullName ??
+        profileResponse.data?.name ??
+        '';
+      setProfileName(nextProfileName);
+      if (nextProfileName) {
+        localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextProfileName);
+      } else {
+        localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
+      }
+    } catch {
+      setProfileName(readCachedProfileName());
+    }
+  };
+
   useEffect(() => {
-    const loadDashboard = async () => {
-      const token = localStorage.getItem('auth_token');
-      if (!token) return;
-      const headers = { Authorization: `Bearer ${token}` };
-
-      try {
-        const dashboardResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.dashboard), { headers });
-
-        setDashboardStats(dashboardResponse.data);
-        setLoadError(null);
-      } catch (error) {
-        setLoadError('Could not load dashboard stats yet.');
-        console.warn('Dashboard stats failed.', error);
-      }
-
-      try {
-        const achievementsResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.achievements.list), { headers });
-
-        const achievements = Array.isArray(achievementsResponse.data)
-          ? achievementsResponse.data.map((item: any): AchievementSummary => ({
-              id: String(item?.id ?? item?.key ?? item?.title),
-              title: item?.title ?? item?.achievement_title ?? 'Achievement',
-              description: item?.description ?? '',
-              badgeIcon: String(item?.badge_icon ?? '').toLowerCase(),
-              unlocked: Boolean(item?.unlocked),
-              unlockedAt: item?.unlocked_at,
-            }))
-          : [];
-
-        const unlockedAchievement = achievements
-          .filter((achievement) => achievement.unlocked)
-          .sort((left, right) => {
-            const rightTime = right.unlockedAt ? new Date(right.unlockedAt).getTime() : 0;
-            const leftTime = left.unlockedAt ? new Date(left.unlockedAt).getTime() : 0;
-            return rightTime - leftTime;
-          })
-          .find((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
-
-        if (unlockedAchievement) {
-          setAchievementPopup({ achievement: unlockedAchievement });
-        }
-      } catch (error) {
-        console.warn('Achievement unlock popup failed.', error);
-      }
-
-      try {
-        const profileResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
-          headers,
-        });
-        const nextProfileName =
-          profileResponse.data?.full_name ??
-          profileResponse.data?.fullName ??
-          profileResponse.data?.name ??
-          '';
-        setProfileName(nextProfileName);
-        if (nextProfileName) {
-          localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextProfileName);
-        } else {
-          localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
-        }
-      } catch {
-        setProfileName(readCachedProfileName());
-      }
-    };
-
     loadDashboard();
   }, []);
 
@@ -300,9 +299,16 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   const totalBadges = Number(dashboardStats?.total_badges ?? 0);
   const badgeProgress = totalBadges ? Math.round((badgesEarned / totalBadges) * 100) : 0;
   const recentActivity = Array.isArray(dashboardStats?.recent_activity) ? dashboardStats.recent_activity : [];
+  const todayGoals = Array.isArray(dashboardStats?.today_goals) ? dashboardStats.today_goals : [];
+  const activeGoal = dashboardStats?.active_goal ?? todayGoals.find((goal: any) => !goal.completed);
+  const todayGoalStats = dashboardStats?.today_goal_stats ?? {};
+  const activeGoalProgress = activeGoal?.target_minutes
+    ? Math.round((Number(activeGoal.current_minutes ?? 0) / Number(activeGoal.target_minutes)) * 100)
+    : 0;
   const AchievementPopupIcon = achievementPopup
     ? iconByBadgeName[achievementPopup.achievement.badgeIcon] ?? Award
     : Award;
+
 
   const closeAchievementPopup = () => {
     if (achievementPopup) {
@@ -575,23 +581,55 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
               <Card className="bg-card border-border shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-purple-400" />
-                    Profile Health
+                    <Target className="h-5 w-5 text-teal-400" />
+                    Today's Goals
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex h-full flex-col gap-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
-                      <span className="text-sm text-secondary">Account details</span>
-                      <CheckCircle2 className="h-5 w-5 text-green-400" />
+                  {activeGoal ? (
+                    <div className="rounded-lg border border-teal-500/30 bg-teal-500/10 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <p className="min-w-0 truncate text-sm font-medium">{activeGoal.title}</p>
+                        <span className="shrink-0 text-xs text-secondary">
+                          {activeGoal.current_minutes ?? 0}/{activeGoal.target_minutes ?? 0} min
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <motion.div
+                          className="h-full bg-gradient-to-r from-teal-500 to-blue-500"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, activeGoalProgress)}%` }}
+                          transition={{ duration: 0.4 }}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
-                      <span className="text-sm text-secondary">Onboarding complete</span>
-                      <CheckCircle2 className="h-5 w-5 text-green-400" />
+                  ) : (
+                    <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-secondary">
+                      No active goal for today.
                     </div>
+                  )}
+                  <div className="space-y-2">
+                    {todayGoals.slice(0, 4).map((goal: any) => (
+                      <div key={goal.id} className="flex items-center gap-3 rounded-lg bg-muted/40 p-2">
+                        {goal.completed ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
+                        ) : (
+                          <Clock className="h-4 w-4 shrink-0 text-blue-400" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm">{goal.title}</p>
+                          <p className="text-xs text-secondary">
+                            {goal.current_minutes ?? 0}/{goal.target_minutes ?? 0} min
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <Button variant="outline" className="mt-auto w-full justify-between" onClick={() => onNavigate('profile')}>
-                    Manage Profile
+                  <p className="mt-auto text-xs text-secondary">
+                    {Number(todayGoalStats.completed ?? 0)} completed, {Number(todayGoalStats.incomplete ?? 0)} incomplete today.
+                  </p>
+                  <Button variant="outline" className="w-full justify-between" onClick={() => onNavigate('goals')}>
+                    Manage Goals
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </CardContent>

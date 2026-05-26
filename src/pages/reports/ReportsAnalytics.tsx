@@ -66,6 +66,13 @@ const toDateKey = (value: unknown) => {
   return Number.isNaN(date.getTime()) ? null : formatLocalDateKey(date);
 };
 
+const toGoalDateKey = (value: unknown) => {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  return toDateKey(value);
+};
+
 const toCsvCell = (value: unknown) => {
   const text = value == null ? '' : String(value);
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
@@ -304,6 +311,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       `Total Focus Minutes: ${reportTotalFocusMinutes}`,
       `Average Focus Score: ${reportAverageFocusScore}%`,
       `Goals Completed: ${goalsCompleted}`,
+      `Goals Incomplete: ${goalsIncomplete}`,
       `Distraction Alerts: ${reportTotalDistractions}`,
       '',
       'Activity',
@@ -338,6 +346,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       ['Total Focus Minutes', reportTotalFocusMinutes],
       ['Average Focus Score', reportAverageFocusScore],
       ['Goals Completed', goalsCompleted],
+      ['Goals Incomplete', goalsIncomplete],
       ['Distraction Alerts', reportTotalDistractions],
       [],
       [reportRange === 'week' ? 'Activity Heatmap This Week' : 'Activity Heatmap This Month'],
@@ -351,13 +360,13 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       ]),
       [],
       ['Goals'],
-      ['Title', 'Current Minutes', 'Target Minutes', 'Completed', 'Due Date'],
+      ['Title', 'Current Minutes', 'Target Minutes', 'Completed', 'Goal Date'],
       ...reportWindowGoals.map((goal) => [
         goal.title,
         goal.current_minutes ?? 0,
         goal.target_minutes ?? 0,
         goal.completed ? 'Yes' : 'No',
-        goal.due_date ?? '',
+        goal.goal_date ?? goal.due_date ?? '',
       ]),
     ];
 
@@ -372,7 +381,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     return date ? heatmapSessionDates.has(date) : false;
   });
   const reportWindowGoals = backendGoals.filter((goal) => {
-    const date = toDateKey(goal?.completed_at ?? goal?.updated_at ?? goal?.due_date);
+    const date = toGoalDateKey(goal?.goal_date ?? goal?.due_date ?? goal?.completed_at ?? goal?.updated_at);
     return date ? heatmapSessionDates.has(date) : false;
   });
   const reportWindowWorkSessions = reportWindowSessions.filter(
@@ -398,6 +407,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const reportAverageFocusScore = reportWindowAverageFocusScore;
   const reportTotalDistractions = reportWindowDistractions;
   const goalsCompleted = reportWindowGoals.filter((goal) => goal.completed).length;
+  const goalsIncomplete = reportWindowGoals.filter((goal) => !goal.completed).length;
   const activeDays = displayedHeatmapData.filter((day) => day.inRange && day.minutes > 0).length;
   const completedHeatmapSessions = displayedHeatmapData.reduce(
     (sum, day) => sum + (day.inRange ? day.sessions : 0),
@@ -496,6 +506,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               </div>
               <p className="text-3xl leading-none gradient-text">{goalsCompleted}</p>
               <p className="mt-2 text-sm text-secondary">Goals Completed</p>
+              <p className="mt-1 text-xs text-secondary">{goalsIncomplete} incomplete in this period</p>
             </CardContent>
           </Card>
 

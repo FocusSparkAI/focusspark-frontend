@@ -11,6 +11,7 @@ import {
   Play,
   ChevronLeft,
   ChevronRight,
+  Target,
   TrendingUp,
 } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -32,6 +33,7 @@ interface DashboardMenuItem {
 
 const menuItems: DashboardMenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'goals', label: 'Goals', icon: Target },
   { id: 'achievements', label: 'Achievements', icon: Trophy },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },

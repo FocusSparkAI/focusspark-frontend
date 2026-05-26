@@ -14,6 +14,8 @@ import { SignUpPage } from '../pages/auth/SignUpPage';
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
 import { OnboardingFlow } from '../pages/onboarding/OnboardingFlow';
 import { StudentDashboard } from '../pages/dashboard/StudentDashboard';
+import { GoalsPage } from '../pages/goals/GoalsPage';
+import { GoalsHistoryPage } from '../pages/goals/GoalsHistoryPage';
 import { AchievementsScreen } from '../pages/achievements/AchievementsScreen';
 import { ReportsAnalytics } from '../pages/reports/ReportsAnalytics';
 import { ProfileScreen } from '../pages/profile/ProfileScreen';
@@ -97,6 +99,8 @@ function AppRoutes() {
       'forgot-password': '/forgot-password',
       onboarding: '/onboarding',
       dashboard: '/dashboard',
+      goals: '/goals',
+      'goals-history': '/goals/history',
       achievements: '/achievements',
       reports: '/reports',
       profile: '/profile',
@@ -129,6 +133,8 @@ function AppRoutes() {
     '/forgot-password',
     '/onboarding',
     '/dashboard',
+    '/goals',
+    '/goals/history',
     '/achievements',
     '/reports',
     '/profile',
@@ -174,6 +180,8 @@ function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigate} />} />
         <Route path="/onboarding" element={<RequireAuth><OnboardingFlow onComplete={handleOnboardingComplete} onThemeChange={applyThemeAndSave} /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><StudentDashboard onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} /></RequireAuth>} />
+        <Route path="/goals" element={<RequireAuth><GoalsPage onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} /></RequireAuth>} />
+        <Route path="/goals/history" element={<RequireAuth><GoalsHistoryPage onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} /></RequireAuth>} />
         <Route path="/achievements" element={<RequireAuth><AchievementsScreen onNavigate={handleNavigate} /></RequireAuth>} />
         <Route path="/reports" element={<RequireAuth><ReportsAnalytics onNavigate={handleNavigate} /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileScreen onNavigate={handleNavigate} onReplayOnboarding={() => { navigate('/onboarding'); }} /></RequireAuth>} />
