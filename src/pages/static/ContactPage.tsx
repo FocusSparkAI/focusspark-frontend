@@ -48,9 +48,9 @@ export function ContactPage() {
               <h2 className="text-4xl mb-6">
                 We'd love to hear from you
               </h2>
-              
+
               <p className="text-xl text-muted-foreground mb-8">
-                Have questions about FocusSpark? Want to share feedback? 
+                Have questions about FocusSpark? Want to share feedback?
                 We're here to help and always excited to connect with our community.
               </p>
 
@@ -61,11 +61,11 @@ export function ContactPage() {
                   </div>
                   <div>
                     <h4 className="mb-1">Email Us</h4>
-                    <a 
-                      href="mailto:hello@focusspark.ai" 
+                    <a
+                      href="mailto:focussparkai@gmail.com"
                       className="text-muted-foreground hover:text-blue-400 transition-colors"
                     >
-                      hello@focusspark.ai
+                      focussparkai@gmail.com
                     </a>
                   </div>
                 </div>
