@@ -5,10 +5,14 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { toast } from 'sonner';
+import { makeFloatingParticles } from '../../utils/stableParticles';
 
 interface ForgotPasswordPageProps {
   onNavigate: (page: string) => void;
 }
+
+const successParticles = makeFloatingParticles(15, 61);
+const backgroundParticles = makeFloatingParticles(15, 73);
 
 export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
   const [email, setEmail] = useState('');
@@ -51,20 +55,20 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       <div className="min-h-screen flex items-center justify-center px-6 py-20 gradient-wave relative overflow-hidden">
         {/* Background Particles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(15)].map((_, i) => (
+          {successParticles.map((particle) => (
             <motion.div
-              key={i}
+              key={particle.id}
               className="absolute w-1 h-1 bg-teal-500/20 rounded-full"
               style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
+                left: particle.left,
+                top: particle.top,
               }}
               animate={{
                 scale: [1, 1.5, 1],
                 opacity: [0.3, 0.6, 0.3],
               }}
               transition={{
-                duration: 2 + Math.random() * 2,
+                duration: 2 + particle.duration / 3,
                 repeat: Infinity,
                 ease: 'easeInOut',
               }}
@@ -120,20 +124,20 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     <div className="min-h-screen flex items-center justify-center px-6 py-20 gradient-wave relative overflow-hidden">
       {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(15)].map((_, i) => (
+        {backgroundParticles.map((particle) => (
           <motion.div
-            key={i}
+            key={particle.id}
             className="absolute w-1 h-1 bg-blue-500/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: particle.left,
+              top: particle.top,
             }}
             animate={{
               y: [0, -30, 0],
               opacity: [0.2, 0.5, 0.2],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: 3 + particle.duration / 3,
               repeat: Infinity,
               ease: 'easeInOut',
             }}

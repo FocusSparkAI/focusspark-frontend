@@ -51,7 +51,7 @@ export function DashboardSidebar({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 80 : 280 }}
+      animate={{ width: collapsed ? 72 : 252 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="bg-card border-r border-border flex flex-col sticky top-0 h-screen"
     >
@@ -104,7 +104,7 @@ export function DashboardSidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto" style={{ padding: 14 }}>
+      <nav className="flex-1 overflow-hidden" style={{ padding: 12 }}>
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.id;
@@ -114,9 +114,9 @@ export function DashboardSidebar({
               onClick={() => onNavigate(item.target ?? item.id)}
               className="w-full flex items-center gap-3 transition-colors group"
               style={{
-                minHeight: 44,
-                padding: collapsed ? '10px 12px' : '10px 14px',
-                marginBottom: 6,
+                minHeight: 40,
+                padding: collapsed ? '8px 10px' : '8px 12px',
+                marginBottom: 4,
                 borderRadius: 10,
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 color: isActive ? 'var(--foreground)' : 'var(--secondary)',

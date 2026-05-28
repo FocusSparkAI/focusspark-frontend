@@ -29,6 +29,7 @@ import {
 } from 'recharts';
 import { toast } from 'sonner';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { type ApiRecord, getString } from '../../utils/apiTypes';
 
 interface AnalyticsDashboardProps {
   onNavigate: (page: string) => void;
@@ -45,6 +46,14 @@ type ConsistencyDataRow = {
   week: string;
   studyDays: number;
   completedSessions: number;
+};
+
+type StudyInsight = {
+  title: string;
+  value: string;
+  detail: string;
+  icon: typeof CalendarCheck;
+  color: string;
 };
 
 const toCsvCell = (value: unknown) => {
@@ -64,8 +73,8 @@ const downloadCsv = (filename: string, rows: unknown[][]) => {
 };
 
 export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
-  const [backendAnalytics, setBackendAnalytics] = useState<any | null>(null);
-  const [backendSummary, setBackendSummary] = useState<any | null>(null);
+  const [backendAnalytics, setBackendAnalytics] = useState<ApiRecord | null>(null);
+  const [backendSummary, setBackendSummary] = useState<ApiRecord | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -96,8 +105,8 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
   const focusData: FocusDataRow[] = useMemo(() => {
     if (!Array.isArray(backendAnalytics?.daily_focus)) return [];
 
-    return backendAnalytics.daily_focus.map((item: any) => ({
-      date: item.day,
+    return (backendAnalytics.daily_focus as ApiRecord[]).map((item) => ({
+      date: getString(item.day),
       minutes: Number(item.minutes ?? 0),
       distractions: Number(item.distractions ?? 0),
       accuracy: Number(item.focus_score ?? 0),
@@ -107,8 +116,8 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
   const consistencyData: ConsistencyDataRow[] = useMemo(() => {
     if (!Array.isArray(backendAnalytics?.weekly_consistency)) return [];
 
-    return backendAnalytics.weekly_consistency.map((item: any) => ({
-      week: item.week,
+    return (backendAnalytics.weekly_consistency as ApiRecord[]).map((item) => ({
+      week: getString(item.week),
       studyDays: Number(item.study_days ?? 0),
       completedSessions: Number(item.completed_sessions ?? 0),
     }));
@@ -133,15 +142,15 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
   const goalsIncomplete = Number(backendAnalytics?.goals_incomplete ?? backendSummary?.goals_incomplete ?? 0);
   const goalCompletionRate = Number(backendAnalytics?.goal_completion_rate ?? backendSummary?.goal_completion_rate ?? 0);
 
-  const studyInsights = useMemo(() => {
+  const studyInsights = useMemo<StudyInsight[]>(() => {
     const backendInsights = Array.isArray(backendAnalytics?.insights) ? backendAnalytics.insights : [];
     const icons = [CalendarCheck, Clock, AlertCircle, Target];
     const colors = ['text-teal-400', 'text-blue-400', 'text-yellow-400', 'text-green-400'];
 
-    return backendInsights.map((insight: any, index: number) => ({
-      title: insight.title ?? 'Study insight',
-      value: insight.value ?? '',
-      detail: insight.detail ?? '',
+    return (backendInsights as ApiRecord[]).map((insight, index) => ({
+      title: getString(insight.title, 'Study insight'),
+      value: getString(insight.value),
+      detail: getString(insight.detail),
       icon: icons[index % icons.length],
       color: colors[index % colors.length],
     }));
@@ -185,7 +194,7 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-6 py-4">
+        <div className="w-full px-8 py-4 lg:px-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button

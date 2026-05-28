@@ -27,9 +27,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { useFocus } from '../../context/FocusContext';
+import { useFocus } from '../../hooks/useFocus';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { DeleteAccountDialog } from '../../components/account/DeleteAccountDialog';
+import { getErrorMessage } from '../../utils/apiTypes';
 
 interface SettingsScreenProps {
   onNavigate: (page: string) => void;
@@ -216,7 +217,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       .catch(() => {
         // Keep the locally selected theme if backend settings are unavailable.
       });
-  }, []);
+  }, [onThemeChange, setIsDetectionEnabled]);
 
   const handleSavePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -241,9 +242,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       setNewPassword('');
       setConfirmPassword('');
       toast.success('Password updated successfully.');
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to update password';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to update password'));
     }
   };
 
@@ -263,9 +263,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       setDeleteConfirmStep(1);
       toast.success('Account deleted successfully.');
       onNavigate('home');
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to delete account';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to delete account'));
     }
   };
 
@@ -284,9 +283,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
         },
         { headers },
       );
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save theme preference';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to save theme preference'));
     }
   };
 
@@ -316,9 +314,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       setSavedPomodoroWork(pomodoroWork);
       setSavedPomodoroBreak(pomodoroBreak);
       toast.success('Pomodoro timings saved.');
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save Pomodoro settings';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to save Pomodoro settings'));
     }
   };
 
@@ -335,9 +332,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
         { headers },
       );
       toast.success('Focus detection settings saved.');
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save focus settings';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to save focus settings'));
     }
   };
 
@@ -366,9 +362,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
         { headers },
       );
       toast.success('AI defaults saved.');
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save AI defaults';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to save AI defaults'));
     }
   };
 
@@ -388,9 +383,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
         { headers },
       );
       toast.success('Notification settings saved.');
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to save notification settings';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to save notification settings'));
     }
   };
 
@@ -398,7 +392,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="w-full px-8 py-4 lg:px-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button

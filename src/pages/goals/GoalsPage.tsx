@@ -7,12 +7,25 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { type ApiRecord } from '../../utils/apiTypes';
 
 interface GoalsPageProps {
   onNavigate: (page: string) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 }
+
+type StudyGoal = ApiRecord & {
+  id?: number | string;
+  title?: string;
+  completed?: boolean;
+  current_minutes?: number | string;
+  target_minutes?: number | string;
+  goal_date?: string;
+  due_date?: string;
+  created_at?: string;
+  updated_at?: string;
+};
 
 const formatDateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -23,7 +36,7 @@ const formatDateKey = (date: Date) => {
 
 const todayKey = () => formatDateKey(new Date());
 
-const goalDateKey = (goal: any) => {
+const goalDateKey = (goal: StudyGoal) => {
   if (typeof goal?.goal_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal.goal_date)) return goal.goal_date;
   if (typeof goal?.due_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal.due_date)) return goal.due_date;
 
@@ -32,16 +45,16 @@ const goalDateKey = (goal: any) => {
   return Number.isNaN(date.getTime()) ? todayKey() : formatDateKey(date);
 };
 
-const goalProgress = (goal: any) => {
+const goalProgress = (goal: StudyGoal) => {
   const current = Number(goal?.current_minutes ?? 0);
   const target = Math.max(5, Number(goal?.target_minutes ?? 5));
   return Math.min(100, Math.round((current / target) * 100));
 };
 
-const goalTargetMinutes = (goal: any) => Math.max(5, Number(goal?.target_minutes ?? 5));
+const goalTargetMinutes = (goal: StudyGoal) => Math.max(5, Number(goal?.target_minutes ?? 5));
 
 export function GoalsPage({ onNavigate }: GoalsPageProps) {
-  const [goals, setGoals] = useState<any[]>([]);
+  const [goals, setGoals] = useState<StudyGoal[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalMinutes, setNewGoalMinutes] = useState('20');
@@ -55,7 +68,7 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
       const response = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.goals.list), {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setGoals(Array.isArray(response.data) ? response.data : []);
+      setGoals(Array.isArray(response.data) ? response.data as StudyGoal[] : []);
       setLoadError(null);
     } catch (error) {
       setLoadError('Could not load goals yet.');
@@ -64,7 +77,8 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
   };
 
   useEffect(() => {
-    void loadGoals();
+    const timeoutId = window.setTimeout(() => void loadGoals(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const todaysGoals = useMemo(() => goals.filter((goal) => goalDateKey(goal) === todayKey()), [goals]);
@@ -119,7 +133,7 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
     }
   };
 
-  const renderGoal = (goal: any) => (
+  const renderGoal = (goal: StudyGoal) => (
     <Card key={goal.id} className="border-border bg-card shadow-sm">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
@@ -166,13 +180,13 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="flex w-full items-center justify-between gap-3 px-8 py-4 lg:px-10">
           <div className="flex min-w-0 items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => onNavigate('dashboard')}>
               <Home className="h-5 w-5" />
             </Button>
             <div className="min-w-0">
-              <h1 className="truncate text-2xl font-semibold tracking-normal">Goals</h1>
+              <h1 className="gradient-text">Goals</h1>
               <p className="text-sm text-secondary">Today's study blocks</p>
             </div>
           </div>

@@ -12,6 +12,7 @@ import { ContactPage } from '../pages/static/ContactPage';
 import { SignInPage } from '../pages/auth/SignInPage';
 import { SignUpPage } from '../pages/auth/SignUpPage';
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
+import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage';
 import { OnboardingFlow } from '../pages/onboarding/OnboardingFlow';
 import { StudentDashboard } from '../pages/dashboard/StudentDashboard';
 import { GoalsPage } from '../pages/goals/GoalsPage';
@@ -33,14 +34,17 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children;
 }
 
-const publicPages = new Set(['home', 'science', 'about', 'contact', 'signin', 'signup', 'forgot-password']);
-const publicPaths = new Set(['/', '/science', '/about', '/contact', '/signin', '/signup', '/forgot-password']);
+const publicPages = new Set(['home', 'science', 'about', 'contact', 'signin', 'signup', 'forgot-password', 'verify-email']);
+const publicPaths = new Set(['/', '/science', '/about', '/contact', '/signin', '/signup', '/forgot-password', '/verify-email']);
 
 function AppRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const savedTheme = localStorage.getItem('focusspark-theme');
+    return savedTheme === 'dark' ? 'dark' : 'light';
+  });
 
   const applyTheme = (newTheme: 'light' | 'dark') => {
     setTheme(newTheme);
@@ -77,11 +81,11 @@ function AppRoutes() {
 
   useEffect(() => {
     document.documentElement.classList.add('preload');
-    const savedTheme = localStorage.getItem('focusspark-theme') as 'light' | 'dark' | null;
-    const initialTheme: 'light' | 'dark' = savedTheme || 'light';
-    applyTheme(initialTheme);
-    setTimeout(() => document.documentElement.classList.remove('preload'), 100);
-  }, []);
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+    const timeoutId = window.setTimeout(() => document.documentElement.classList.remove('preload'), 100);
+    return () => window.clearTimeout(timeoutId);
+  }, [theme]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -97,6 +101,7 @@ function AppRoutes() {
       signin: '/signin',
       signup: '/signup',
       'forgot-password': '/forgot-password',
+      'verify-email': '/verify-email',
       onboarding: '/onboarding',
       dashboard: '/dashboard',
       goals: '/goals',
@@ -131,6 +136,7 @@ function AppRoutes() {
     '/signin',
     '/signup',
     '/forgot-password',
+    '/verify-email',
     '/onboarding',
     '/dashboard',
     '/goals',
@@ -176,8 +182,9 @@ function AppRoutes() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/signin" element={<SignInPage onNavigate={handleNavigate} onAuthSuccess={handleAuthSuccess} />} />
-        <Route path="/signup" element={<SignUpPage onNavigate={handleNavigate} onAuthSuccess={handleAuthSuccess} />} />
+        <Route path="/signup" element={<SignUpPage onNavigate={handleNavigate} />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigate} />} />
+        <Route path="/verify-email" element={<VerifyEmailPage onNavigate={handleNavigate} onContinue={() => handleAuthSuccess(true)} />} />
         <Route path="/onboarding" element={<RequireAuth><OnboardingFlow onComplete={handleOnboardingComplete} onThemeChange={applyThemeAndSave} /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><StudentDashboard onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} /></RequireAuth>} />
         <Route path="/goals" element={<RequireAuth><GoalsPage onNavigate={handleNavigate} theme={theme} onToggleTheme={toggleTheme} /></RequireAuth>} />

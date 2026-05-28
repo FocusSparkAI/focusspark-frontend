@@ -13,6 +13,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { makeFloatingParticles } from '../../utils/stableParticles';
 
 interface OnboardingFlowProps {
   onComplete: (skipTour?: boolean) => void;
@@ -64,6 +65,9 @@ const supportPages = [
     points: ['Compare focus patterns over time', 'Manage profile and privacy choices', 'Use settings as the place for real preferences'],
   },
 ];
+
+const backgroundParticles = makeFloatingParticles(30, 131);
+const confettiParticles = makeFloatingParticles(100, 149);
 
 export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProps) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -126,21 +130,21 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
   return (
     <div className="min-h-screen flex flex-col items-center justify-start sm:justify-center px-4 sm:px-6 py-6 sm:py-8 gradient-wave relative overflow-x-hidden overflow-y-auto">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(30)].map((_, i) => (
+        {backgroundParticles.map((particle) => (
           <motion.div
-            key={i}
+            key={particle.id}
             className="absolute w-1 h-1 bg-blue-500/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: particle.left,
+              top: particle.top,
             }}
             animate={{
               y: [0, -50, 0],
-              x: [0, Math.random() * 30 - 15, 0],
+              x: [0, particle.smallX, 0],
               opacity: [0.2, 0.5, 0.2],
             }}
             transition={{
-              duration: 5 + Math.random() * 3,
+              duration: 5 + particle.duration / 2,
               repeat: Infinity,
               ease: 'easeInOut',
             }}
@@ -150,17 +154,15 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
 
       {showConfetti && (
         <div className="absolute inset-0 pointer-events-none z-50">
-          {[...Array(100)].map((_, i) => (
+          {confettiParticles.map((particle) => (
             <motion.div
-              key={i}
+              key={particle.id}
               className="absolute w-2 h-2 confetti"
               style={{
-                left: `${Math.random() * 100}%`,
+                left: particle.left,
                 top: '-10%',
-                backgroundColor: ['#3b82f6', '#8b5cf6', '#14b8a6', '#f59e0b', '#ef4444'][
-                  Math.floor(Math.random() * 5)
-                ],
-                animationDelay: `${Math.random() * 0.5}s`,
+                backgroundColor: particle.color,
+                animationDelay: particle.delay,
               }}
             />
           ))}

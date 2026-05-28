@@ -1,31 +1,34 @@
 import { motion } from 'motion/react';
 import { Sparkles, ChevronDown, LayoutDashboard, Target, Brain, Zap, BookOpen } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { makeFloatingParticles } from '../../utils/stableParticles';
 
 interface HeroSectionProps {
   onNavigate?: (page: string) => void;
 }
+
+const heroParticles = makeFloatingParticles(15, 101);
 
 export function HeroSection({ onNavigate }: HeroSectionProps) {
   return (
     <section className="home-hero-light relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Animated Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(15)].map((_, i) => (
+        {heroParticles.map((particle) => (
           <motion.div
-            key={i}
+            key={particle.id}
             className="absolute w-2 h-2 bg-blue-500/30 dark:bg-blue-500/30 rounded-full particle"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: particle.left,
+              top: particle.top,
             }}
             animate={{
-              x: [0, Math.random() * 100 - 50],
-              y: [0, Math.random() * 100 - 50],
+              x: [0, particle.x],
+              y: [0, particle.y],
               opacity: [0.3, 0.6, 0.3],
             }}
             transition={{
-              duration: 4 + Math.random() * 4,
+              duration: 4 + particle.duration / 2,
               repeat: Infinity,
               ease: 'easeInOut',
             }}
@@ -33,7 +36,7 @@ export function HeroSection({ onNavigate }: HeroSectionProps) {
         ))}
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-20 py-20 grid lg:grid-cols-2 gap-12 items-center relative z-10">
+      <div className="max-w-7xl mx-auto px-6 lg:px-20 py-20 grid lg:grid-cols-2 gap-12 items-start relative z-10">
         {/* Left Content */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -42,22 +45,22 @@ export function HeroSection({ onNavigate }: HeroSectionProps) {
           className="text-left"
         >
           <motion.h1
-            className="home-hero-title text-5xl lg:text-6xl mb-6"
+            className="home-hero-title text-5xl sm:text-6xl lg:text-6xl leading-[0.98] mb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.8 }}
           >
-            Welcome to <span className="gradient-text">FocusSpark</span> –{' '}
-            <span className="gradient-text">Infinite Productivity</span>
+            <span className="gradient-text">FocusSpark</span> -
+            <span className="block">Stay focused, learn better.</span>
           </motion.h1>
           
           <motion.p
-            className="home-hero-copy text-xl mb-8 max-w-xl"
+            className="home-hero-copy text-2xl mb-8 max-w-xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            Your AI-powered study partner for focus, flow, and smarter learning.
+            Your AI-powered study partner for focus, progress, and better learning habits.
           </motion.p>
 
           <motion.div
@@ -91,7 +94,7 @@ export function HeroSection({ onNavigate }: HeroSectionProps) {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.4, duration: 1 }}
-          className="relative"
+          className="relative lg:pt-4"
         >
           <div className="relative">
             {/* Glowing Ring */}

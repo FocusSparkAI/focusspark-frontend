@@ -39,15 +39,17 @@ import {
   Sunrise,
   Upload,
   UserCheck,
+  type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { type ApiRecord, getBoolean, getErrorMessage, getNumber, getString } from '../../utils/apiTypes';
 
 interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: any;
+  icon: LucideIcon;
   unlocked: boolean;
   unlockedDate?: Date;
   progress: number;
@@ -61,7 +63,7 @@ interface AchievementsScreenProps {
   onNavigate: (page: string) => void;
 }
 
-const iconByBadgeName: Record<string, any> = {
+const iconByBadgeName: Record<string, LucideIcon> = {
   award: Award,
   'book-open': BookOpen,
   boxes: Boxes,
@@ -86,27 +88,28 @@ const iconByBadgeName: Record<string, any> = {
   zap: Zap,
 };
 
-const mapBackendAchievement = (raw: any): Achievement => {
-  const tier = ['bronze', 'silver', 'gold', 'platinum'].includes(raw?.tier)
-    ? raw.tier
+const mapBackendAchievement = (raw: ApiRecord): Achievement => {
+  const rawTier = getString(raw.tier);
+  const tier = ['bronze', 'silver', 'gold', 'platinum'].includes(rawTier)
+    ? rawTier as Achievement['tier']
     : 'bronze';
-  const progress = Number(raw?.progress_current ?? 0);
-  const maxProgress = Number(raw?.progress_target ?? raw?.criteria_target ?? 1) || 1;
+  const progress = getNumber(raw.progress_current);
+  const maxProgress = getNumber(raw.progress_target ?? raw.criteria_target, 1) || 1;
 
   return {
-    id: String(raw?.id ?? raw?.key ?? raw?.title),
-    title: raw?.title ?? raw?.achievement_title ?? 'Achievement',
-    description: raw?.description ?? '',
-    icon: iconByBadgeName[String(raw?.badge_icon ?? '').toLowerCase()] ?? Award,
-    unlocked: Boolean(raw?.unlocked),
-    unlockedDate: raw?.unlocked_at ? new Date(raw.unlocked_at) : undefined,
+    id: String(raw.id ?? raw.key ?? raw.title),
+    title: getString(raw.title) || getString(raw.achievement_title, 'Achievement'),
+    description: getString(raw.description),
+    icon: iconByBadgeName[getString(raw.badge_icon).toLowerCase()] ?? Award,
+    unlocked: getBoolean(raw.unlocked),
+    unlockedDate: raw.unlocked_at ? new Date(String(raw.unlocked_at)) : undefined,
     progress: Math.min(progress, maxProgress),
     maxProgress,
-    criteria: raw?.criteria_type
+    criteria: raw.criteria_type
       ? `${String(raw.criteria_type).replace(/_/g, ' ')}: ${maxProgress}`
-      : raw?.description ?? 'Complete the required activity',
+      : getString(raw.description, 'Complete the required activity'),
     tier,
-    unlockOrder: Number(raw?.unlock_order ?? 999),
+    unlockOrder: getNumber(raw.unlock_order, 999),
   };
 };
 
@@ -142,14 +145,14 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
         });
 
         if (Array.isArray(response.data)) {
-          setAchievements(sortAchievementsByUnlockOrder(response.data.map(mapBackendAchievement)));
+          setAchievements(sortAchievementsByUnlockOrder((response.data as ApiRecord[]).map(mapBackendAchievement)));
         } else {
           setAchievements([]);
           setLoadError('Unexpected achievements response from server.');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         setAchievements([]);
-        setLoadError(error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Failed to load achievements.');
+        setLoadError(getErrorMessage(error, 'Failed to load achievements.'));
       } finally {
         setIsLoading(false);
       }
@@ -225,7 +228,7 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="w-full px-8 py-4 lg:px-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button

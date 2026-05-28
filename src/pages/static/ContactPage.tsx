@@ -15,7 +15,14 @@ export function ContactPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Message sent! We\'ll get back to you soon.');
+
+    const subject = encodeURIComponent(`FocusSpark message from ${formData.name}`);
+    const body = encodeURIComponent(
+      `Name: ${formData.name}\nEmail: ${formData.email}\n\n${formData.message}`
+    );
+
+    window.location.href = `mailto:focussparkai@gmail.com?subject=${subject}&body=${body}`;
+    toast.success('Opening your email app with your message ready to send.');
     setFormData({ name: '', email: '', message: '' });
   };
 
@@ -27,11 +34,20 @@ export function ContactPage() {
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-5xl lg:text-6xl text-center mb-6"
+            className="text-4xl sm:text-5xl lg:text-6xl leading-tight text-center mb-6 max-w-5xl mx-auto"
           >
             Get in touch with the{' '}
             <span className="gradient-text">FocusSpark Team</span>
           </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-xl text-muted-foreground text-center max-w-3xl mx-auto leading-relaxed"
+          >
+            Questions, feedback, or collaboration ideas? Send us a message and
+            your email app will open with everything ready to go.
+          </motion.p>
         </div>
       </section>
 
@@ -67,21 +83,6 @@ export function ContactPage() {
                     >
                       focussparkai@gmail.com
                     </a>
-                  </div>
-                </div>
-
-                <div className="pt-8">
-                  <h4 className="mb-4">Follow Us</h4>
-                  <div className="flex gap-4">
-                    {['LinkedIn', 'Twitter', 'YouTube'].map((platform) => (
-                      <Button
-                        key={platform}
-                        variant="outline"
-                        className="hover:bg-blue-500/10 hover:border-blue-500 transition-all"
-                      >
-                        {platform}
-                      </Button>
-                    ))}
                   </div>
                 </div>
               </div>
@@ -152,7 +153,7 @@ export function ContactPage() {
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all"
                 >
                   <Send className="w-5 h-5 mr-2" />
-                  Send Message
+                  Send via Email
                 </Button>
               </form>
             </motion.div>

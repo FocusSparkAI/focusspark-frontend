@@ -9,10 +9,11 @@ import { Checkbox } from '../../components/ui/checkbox';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { getErrorMessage } from '../../utils/apiTypes';
+import { makeFloatingParticles } from '../../utils/stableParticles';
 
 interface SignUpPageProps {
   onNavigate: (page: string) => void;
-  onAuthSuccess?: (isNew?: boolean) => void;
 }
 
 const academicFocusOptions = [
@@ -28,7 +29,27 @@ const academicFocusOptions = [
   'Other',
 ];
 
-export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
+const backgroundParticles = makeFloatingParticles(25, 31);
+const confettiParticles = makeFloatingParticles(50, 47);
+const emailPattern = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+
+const isValidEmail = (email: string) => {
+  const normalizedEmail = email.trim();
+  if (!emailPattern.test(normalizedEmail)) return false;
+
+  const [localPart, domain] = normalizedEmail.split('@');
+  return Boolean(
+    localPart &&
+      domain &&
+      !localPart.startsWith('.') &&
+      !localPart.endsWith('.') &&
+      !domain.startsWith('.') &&
+      !domain.endsWith('.') &&
+      !domain.includes('..'),
+  );
+};
+
+export function SignUpPage({ onNavigate }: SignUpPageProps) {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -51,10 +72,10 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
       newErrors.fullName = 'Full name is required';
     }
 
-    if (!formData.email) {
+    if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
+    } else if (!isValidEmail(formData.email)) {
+      newErrors.email = 'Enter a valid email address';
     }
 
     if (!formData.password) {
@@ -94,7 +115,7 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
       const url = buildBackendUrl(BACKEND_ROUTES.auth.signup);
       const payload = {
         full_name: formData.fullName,
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         confirm_password: formData.confirmPassword,
         academic_focus: formData.academicFocus,
@@ -115,14 +136,10 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
       });
 
       setTimeout(() => {
-        onAuthSuccess?.(true);
+        onNavigate('verify-email');
       }, 1200);
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      const message = Array.isArray(detail)
-        ? detail.map((item: any) => item?.msg).filter(Boolean).join(', ')
-        : detail || err?.response?.data?.message || err?.message || 'Signup failed';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Signup failed'));
     } finally {
       setIsLoading(false);
     }
@@ -136,21 +153,21 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
     <div className="min-h-screen w-full flex items-center justify-center px-4 sm:px-6 py-10 sm:py-12 bg-background relative overflow-x-hidden">
       {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(25)].map((_, i) => (
+        {backgroundParticles.map((particle) => (
           <motion.div
-            key={i}
+            key={particle.id}
             className="absolute w-1 h-1 bg-purple-500/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: particle.left,
+              top: particle.top,
             }}
             animate={{
               y: [0, -40, 0],
-              x: [0, Math.random() * 20 - 10, 0],
+              x: [0, particle.smallX, 0],
               opacity: [0.2, 0.6, 0.2],
             }}
             transition={{
-              duration: 4 + Math.random() * 2,
+              duration: 4 + particle.duration / 4,
               repeat: Infinity,
               ease: 'easeInOut',
             }}
@@ -161,17 +178,15 @@ export function SignUpPage({ onNavigate, onAuthSuccess }: SignUpPageProps) {
       {/* Confetti */}
       {showConfetti && (
         <div className="absolute inset-0 pointer-events-none z-50">
-          {[...Array(50)].map((_, i) => (
+          {confettiParticles.map((particle) => (
             <motion.div
-              key={i}
+              key={particle.id}
               className="absolute w-2 h-2 confetti"
               style={{
-                left: `${Math.random() * 100}%`,
+                left: particle.left,
                 top: '-10%',
-                backgroundColor: ['#3b82f6', '#8b5cf6', '#14b8a6', '#f59e0b'][
-                  Math.floor(Math.random() * 4)
-                ],
-                animationDelay: `${Math.random() * 0.5}s`,
+                backgroundColor: particle.color,
+                animationDelay: particle.delay,
               }}
             />
           ))}

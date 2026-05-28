@@ -41,11 +41,20 @@ export function AboutPage() {
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-5xl lg:text-6xl mb-6"
+            className="text-4xl sm:text-5xl lg:text-6xl leading-tight mb-6 max-w-5xl mx-auto"
           >
-            We're about making a{' '}
-            <span className="gradient-text">positive impact</span>
+            Helping students stay focused, learn smarter, and build{' '}
+            <span className="gradient-text">better study habits</span>
           </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed"
+          >
+            FocusSpark combines AI-powered learning tools, focus tracking, and productivity
+            support to make studying feel more personal, structured, and motivating.
+          </motion.p>
         </div>
       </section>
 
@@ -67,9 +76,9 @@ export function AboutPage() {
             <h3 className="text-3xl mb-4">Our Mission</h3>
             
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Our mission is to help students unlock their full academic potential 
-              through intelligent, personalized learning tools that adapt to each 
-              individual's unique learning style and pace.
+              Our mission is to help students unlock their academic potential
+              through intelligent, personalized learning tools that adapt to each
+              student's learning style, pace, and focus needs.
             </p>
           </motion.div>
 
@@ -88,9 +97,9 @@ export function AboutPage() {
             <h3 className="text-3xl mb-4">Our Vision</h3>
             
             <p className="text-lg text-muted-foreground leading-relaxed">
-              We aim for radical personalization through adaptive AI. We envision 
-              a future where every student has access to world-class learning 
-              experiences, powered by technology that truly understands them.
+              We envision a future where every student has access to learning
+              experiences that understand their goals, support their attention,
+              and help them grow with confidence.
             </p>
           </motion.div>
         </div>
@@ -124,7 +133,7 @@ export function AboutPage() {
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ y: -10, scale: 1.05 }}
-                  className="relative bg-card border border-border rounded-2xl p-6 text-center cursor-pointer group overflow-hidden"
+                  className="relative bg-card border border-border rounded-2xl p-6 text-center group overflow-hidden"
                 >
                   {/* Gradient background on hover */}
                   <div className={`absolute inset-0 bg-gradient-to-br ${member.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />

@@ -32,12 +32,14 @@ import {
   UserCheck,
   Zap,
   TrendingUp,
+  type LucideIcon,
 } from 'lucide-react';
 import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
 import { DashboardNavbar } from '../../components/layout/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { type ApiRecord, getBoolean, getNumber, getString } from '../../utils/apiTypes';
 
 interface StudentDashboardProps {
   onNavigate: (page: string) => void;
@@ -60,9 +62,27 @@ type AchievementPopup = {
   achievement: AchievementSummary;
 };
 
+type DashboardGoal = ApiRecord & {
+  id?: number | string;
+  title?: string;
+  completed?: boolean;
+  current_minutes?: number | string;
+  target_minutes?: number | string;
+};
+
+type DashboardActivity = ApiRecord & {
+  label?: string;
+  time?: string | number | Date;
+};
+
+type DailyFocusRow = ApiRecord & {
+  day?: string;
+  minutes?: number | string;
+};
+
 const PROFILE_NAME_STORAGE_KEY = 'focusspark-profile-name';
 
-const iconByBadgeName: Record<string, any> = {
+const iconByBadgeName: Record<string, LucideIcon> = {
   award: Award,
   'book-open': BookOpen,
   boxes: Boxes,
@@ -104,7 +124,7 @@ function AchievementCelebrationPopup({
 }: {
   isVisible: boolean;
   achievement: AchievementSummary | null;
-  Icon: any;
+  Icon: LucideIcon;
   onClose: () => void;
   onViewBadges: () => void;
 }) {
@@ -204,7 +224,7 @@ function AchievementCelebrationPopup({
 
 export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDashboardProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [dashboardStats, setDashboardStats] = useState<any | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<ApiRecord | null>(null);
   const [profileName, setProfileName] = useState(readCachedProfileName);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [achievementPopup, setAchievementPopup] = useState<AchievementPopup | null>(null);
@@ -228,13 +248,13 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
       const achievementsResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.achievements.list), { headers });
 
       const achievements = Array.isArray(achievementsResponse.data)
-        ? achievementsResponse.data.map((item: any): AchievementSummary => ({
-            id: String(item?.id ?? item?.key ?? item?.title),
-            title: item?.title ?? item?.achievement_title ?? 'Achievement',
-            description: item?.description ?? '',
-            badgeIcon: String(item?.badge_icon ?? '').toLowerCase(),
-            unlocked: Boolean(item?.unlocked),
-            unlockedAt: item?.unlocked_at,
+        ? (achievementsResponse.data as ApiRecord[]).map((item): AchievementSummary => ({
+            id: String(item.id ?? item.key ?? item.title),
+            title: getString(item.title) || getString(item.achievement_title, 'Achievement'),
+            description: getString(item.description),
+            badgeIcon: getString(item.badge_icon).toLowerCase(),
+            unlocked: getBoolean(item.unlocked),
+            unlockedAt: getString(item.unlocked_at) || undefined,
           }))
         : [];
 
@@ -275,14 +295,15 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   };
 
   useEffect(() => {
-    loadDashboard();
+    const timeoutId = window.setTimeout(() => void loadDashboard(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
-  const dailyFocus = useMemo(
-    () => (Array.isArray(dashboardStats?.daily_focus) ? dashboardStats.daily_focus : []),
+  const dailyFocus = useMemo<DailyFocusRow[]>(
+    () => (Array.isArray(dashboardStats?.daily_focus) ? dashboardStats.daily_focus as DailyFocusRow[] : []),
     [dashboardStats],
   );
-  const maxDailyMinutes = Math.max(1, ...dailyFocus.map((day: any) => Number(day.minutes ?? 0)));
+  const maxDailyMinutes = Math.max(1, ...dailyFocus.map((day) => getNumber(day.minutes)));
   const weeklyBars = dayLabels.map((label, index) => {
     const day = dailyFocus[index];
     const minutes = Number(day?.minutes ?? 0);
@@ -298,10 +319,10 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   const badgesEarned = Number(dashboardStats?.badges_earned ?? 0);
   const totalBadges = Number(dashboardStats?.total_badges ?? 0);
   const badgeProgress = totalBadges ? Math.round((badgesEarned / totalBadges) * 100) : 0;
-  const recentActivity = Array.isArray(dashboardStats?.recent_activity) ? dashboardStats.recent_activity : [];
-  const todayGoals = Array.isArray(dashboardStats?.today_goals) ? dashboardStats.today_goals : [];
-  const activeGoal = dashboardStats?.active_goal ?? todayGoals.find((goal: any) => !goal.completed);
-  const todayGoalStats = dashboardStats?.today_goal_stats ?? {};
+  const recentActivity = Array.isArray(dashboardStats?.recent_activity) ? dashboardStats.recent_activity as DashboardActivity[] : [];
+  const todayGoals = Array.isArray(dashboardStats?.today_goals) ? dashboardStats.today_goals as DashboardGoal[] : [];
+  const activeGoal = (dashboardStats?.active_goal as DashboardGoal | undefined) ?? todayGoals.find((goal) => !goal.completed);
+  const todayGoalStats = (dashboardStats?.today_goal_stats as ApiRecord | undefined) ?? {};
   const activeGoalProgress = activeGoal?.target_minutes
     ? Math.round((Number(activeGoal.current_minutes ?? 0) / Number(activeGoal.target_minutes)) * 100)
     : 0;
@@ -398,7 +419,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
               </div>
             </motion.div>
 
-            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               {stats.map((stat, index) => {
                 const Icon = stat.icon;
                 return (
@@ -609,7 +630,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                     </div>
                   )}
                   <div className="space-y-2">
-                    {todayGoals.slice(0, 4).map((goal: any) => (
+                    {todayGoals.slice(0, 4).map((goal) => (
                       <div key={goal.id} className="flex items-center gap-3 rounded-lg bg-muted/40 p-2">
                         {goal.completed ? (
                           <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
@@ -675,7 +696,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {recentActivity.length ? (
-                    recentActivity.map((activity: any, index: number) => (
+                    recentActivity.map((activity, index: number) => (
                       <div key={`${activity.label}-${index}`} className="flex items-start gap-3">
                         <div className="rounded-lg bg-muted/50 p-2">
                           <CalendarCheck className="h-4 w-4 text-blue-400" />
