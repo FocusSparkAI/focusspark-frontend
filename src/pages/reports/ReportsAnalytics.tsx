@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { type ApiRecord } from '../../utils/apiTypes';
 
 interface ReportsAnalyticsProps {
   onNavigate: (page: string) => void;
@@ -41,7 +42,28 @@ type HeatmapDay = {
 
 type ReportRange = 'week' | 'month';
 
-const getSessionMinutes = (session: any) =>
+type StudySession = ApiRecord & {
+  actual_duration_minutes?: number | string;
+  planned_duration_minutes?: number | string;
+  started_at?: string;
+  created_at?: string;
+  completed?: boolean;
+  distraction_count?: number | string;
+  session_type?: string;
+};
+
+type StudyGoal = ApiRecord & {
+  title?: string;
+  current_minutes?: number | string;
+  target_minutes?: number | string;
+  completed?: boolean;
+  goal_date?: string;
+  due_date?: string;
+  completed_at?: string;
+  updated_at?: string;
+};
+
+const getSessionMinutes = (session: StudySession) =>
   Number(session?.actual_duration_minutes ?? session?.planned_duration_minutes ?? 0);
 
 const HEATMAP_DAYS_PER_WEEK = 7;
@@ -157,8 +179,8 @@ const createSimplePdfBlob = (title: string, lines: string[]) => {
 export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [reportRange, setReportRange] = useState<ReportRange>('week');
-  const [backendSessions, setBackendSessions] = useState<any[]>([]);
-  const [backendGoals, setBackendGoals] = useState<any[]>([]);
+  const [backendSessions, setBackendSessions] = useState<StudySession[]>([]);
+  const [backendGoals, setBackendGoals] = useState<StudyGoal[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const generateEmptyHeatmapData = (range: ReportRange) => {
@@ -263,10 +285,10 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
         ]);
 
         if (Array.isArray(sessionsResponse.data)) {
-          setBackendSessions(sessionsResponse.data);
+          setBackendSessions(sessionsResponse.data as StudySession[]);
         }
         if (Array.isArray(goalsResponse.data)) {
-          setBackendGoals(goalsResponse.data);
+          setBackendGoals(goalsResponse.data as StudyGoal[]);
         }
         setLoadError(null);
       } catch (error) {
@@ -275,7 +297,8 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       }
     };
 
-    loadReports();
+    const timeoutId = window.setTimeout(() => void loadReports(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const getIntensityColor = (minutes: number) => {
@@ -283,7 +306,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     return level?.color ?? HEATMAP_LEVELS[0].color;
   };
 
-  const handleDayClick = (dayData: any) => {
+  const handleDayClick = (dayData: HeatmapDay) => {
     setSelectedDay(dayData.date);
   };
 
@@ -418,7 +441,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="w-full px-8 py-4 lg:px-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button

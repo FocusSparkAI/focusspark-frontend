@@ -11,7 +11,7 @@ export function SciencePage() {
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-5xl lg:text-6xl mb-6"
+            className="text-4xl sm:text-5xl lg:text-6xl leading-tight mb-6 max-w-5xl mx-auto"
           >
             Made with <span className="gradient-text">Science</span>, Tested by{' '}
             <span className="gradient-text">Students</span>
@@ -21,9 +21,10 @@ export function SciencePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto"
+            className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed"
           >
-            We blend neuroscience and AI for adaptive learning.
+            FocusSpark is shaped by proven learning principles like active recall,
+            spaced repetition, focus cycles, and personalized feedback.
           </motion.p>
 
           <motion.div
@@ -69,10 +70,10 @@ export function SciencePage() {
             </h3>
 
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Our algorithms are built on decades of cognitive science research,
-              combined with cutting-edge machine learning to understand how your
-              brain learns best. Every session adapts to your unique patterns,
-              optimizing for maximum retention and minimal burnout.
+              FocusSpark uses established study methods and adaptive AI to make
+              learning more structured. Each session can respond to a student's
+              progress, helping them review at the right time and study with
+              clearer direction.
             </p>
           </motion.div>
 
@@ -92,15 +93,14 @@ export function SciencePage() {
             </div>
 
             <h3 className="text-3xl mb-4">
-              FocusSpark works <span className="gradient-text">differently</span> -
-              and affects you <span className="gradient-text">differently</span>
+              Built for better <span className="gradient-text">focus</span> and
+              healthier study <span className="gradient-text">habits</span>
             </h3>
 
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Unlike generic productivity apps, FocusSpark uses neuroscience-backed
-              techniques like spaced repetition, active recall, and flow state
-              induction. The result? Faster learning, better retention, and a
-              healthier relationship with studying.
+              Instead of only tracking tasks, FocusSpark supports the way students
+              actually study: short focus sessions, timely review, active recall,
+              and feedback that keeps progress visible without adding pressure.
             </p>
           </motion.div>
         </div>

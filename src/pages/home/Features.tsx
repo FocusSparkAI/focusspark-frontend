@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Target, Bot, BookOpen, TrendingUp, Zap, Coffee } from 'lucide-react';
-import { Button } from '../../components/ui/button';
 
 const features = [
   {
@@ -179,20 +178,6 @@ export function Features() {
           </motion.div>
         )}
 
-        {/* CTA */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="text-center mt-12"
-        >
-          <Button
-            size="lg"
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 hover:scale-105 transition-all px-8 py-6"
-          >
-            Try FocusSpark for Free
-          </Button>
-        </motion.div>
       </div>
     </section>
   );

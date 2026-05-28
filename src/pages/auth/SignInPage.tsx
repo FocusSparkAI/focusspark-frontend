@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -8,11 +8,16 @@ import { toast } from 'sonner';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { getErrorMessage, isApiRecord } from '../../utils/apiTypes';
+import { makeFloatingParticles } from '../../utils/stableParticles';
 
 interface SignInPageProps {
   onNavigate: (page: string) => void;
   onAuthSuccess?: (isNew?: boolean) => void;
 }
+
+const backgroundParticles = makeFloatingParticles(20, 11);
+const authZoomStyle: CSSProperties & { zoom: number } = { zoom: 0.9 };
 
 export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
   const [email, setEmail] = useState('');
@@ -24,8 +29,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
 
   useEffect(() => {
     // Show a prompt if redirected from a protected route
-    const state = location.state as any;
-    if (state?.fromProtected) {
+    if (isApiRecord(location.state) && location.state.fromProtected) {
       toast('Please sign in to continue');
     }
   }, [location.state]);
@@ -49,13 +53,9 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const getLoginErrorMessage = (err: any) => {
-    const status = err?.response?.status;
-    const backendMessage =
-      err?.response?.data?.message ||
-      err?.response?.data?.detail ||
-      err?.response?.data?.error ||
-      '';
+  const getLoginErrorMessage = (err: unknown) => {
+    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+    const backendMessage = getErrorMessage(err, '');
     const normalizedMessage = String(backendMessage).toLowerCase();
 
     if (
@@ -73,7 +73,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
       return 'Invalid email or password. Please try again.';
     }
 
-    return backendMessage || err?.message || 'Login failed. Please try again.';
+    return backendMessage || 'Login failed. Please try again.';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,7 +95,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
 
       toast.success('Welcome back!');
       onAuthSuccess?.(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(getLoginErrorMessage(err));
     } finally {
       setIsLoading(false);
@@ -107,23 +107,23 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-12 bg-background relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center px-6 py-12 bg-background relative overflow-hidden">
       {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+        {backgroundParticles.map((particle) => (
           <motion.div
-            key={i}
+            key={particle.id}
             className="absolute w-1 h-1 bg-blue-500/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: particle.left,
+              top: particle.top,
             }}
             animate={{
               y: [0, -30, 0],
               opacity: [0.2, 0.5, 0.2],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: 3 + particle.duration / 3,
               repeat: Infinity,
               ease: 'easeInOut',
             }}
@@ -136,6 +136,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="w-full max-w-md relative z-10"
+        style={authZoomStyle}
       >
         {/* Glass Card */}
         <div className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-2xl">
@@ -262,7 +263,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
             type="button"
             variant="outline"
             onClick={handleGoogleSignIn}
-            className="w-full bg-white text-black hover:bg-gray-100 border-2 py-5"
+            className="w-full bg-white text-black hover:bg-gray-100 border-2 py-5 dark:bg-white dark:text-black dark:hover:bg-gray-100"
             size="lg"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

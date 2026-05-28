@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { DeleteAccountDialog } from '../../components/account/DeleteAccountDialog';
+import { getErrorMessage } from '../../utils/apiTypes';
 
 interface ProfileScreenProps {
   onNavigate: (page: string) => void;
@@ -90,9 +91,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
         headers: { Authorization: `Bearer ${token}` },
       });
       return true;
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to update profile';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to update profile'));
       return false;
     }
   };
@@ -121,9 +121,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
           setTempBio(data.bio ?? '');
           setAvatarUrl(resolveAssetUrl(data.avatar_url ?? data.avatarUrl ?? ''));
         }
-      } catch (err: any) {
-        const message = err?.response?.data?.message || err?.message || 'Failed to load profile';
-        toast.error(message);
+      } catch (err: unknown) {
+        toast.error(getErrorMessage(err, 'Failed to load profile'));
       }
     };
 
@@ -186,9 +185,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
       });
       setShowClearDataDialog(false);
       toast.success('Account data cleared successfully.');
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to clear account data';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to clear account data'));
     }
   };
 
@@ -214,9 +212,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
       link.click();
       URL.revokeObjectURL(url);
       toast.success('Account data export ready.');
-    } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to export account data';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to export account data'));
     }
   };
 
@@ -245,9 +242,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
         setShowDeleteAccountDialog(false);
         setDeleteConfirmStep(1);
         setTimeout(() => onNavigate('home'), 1200);
-      } catch (err: any) {
-        const message = err?.response?.data?.message || err?.message || 'Delete failed';
-        toast.error(message);
+      } catch (err: unknown) {
+        toast.error(getErrorMessage(err, 'Delete failed'));
       }
     };
 
@@ -285,9 +281,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
           }),
         );
         toast.success('Profile picture updated.');
-      } catch (err: any) {
-        const message = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to upload avatar';
-        toast.error(message);
+      } catch (err: unknown) {
+        toast.error(getErrorMessage(err, 'Failed to upload avatar'));
       }
     };
     input.click();
@@ -314,13 +309,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
         }),
       );
       toast.success('Profile picture removed.');
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to remove profile picture';
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to remove profile picture'));
     } finally {
       setIsRemovingAvatar(false);
     }
@@ -330,7 +320,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+        <div className="w-full px-8 py-4 lg:px-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button

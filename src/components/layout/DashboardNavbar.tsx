@@ -153,11 +153,13 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
 
   useEffect(() => {
     unlockNotificationSound();
-    void loadNotifications();
+    const timeoutId = window.setTimeout(() => void loadNotifications(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [loadNotifications]);
 
   useEffect(() => {
-    void loadProfile();
+    const timeoutId = window.setTimeout(() => void loadProfile(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [loadProfile]);
 
   useEffect(() => {

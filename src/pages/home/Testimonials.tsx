@@ -6,32 +6,25 @@ import { Button } from '../../components/ui/button';
 const testimonials = [
   {
     id: 1,
-    name: 'Sarah Chen',
-    role: 'Medical Student',
-    content: 'FocusSpark transformed my study routine. I can now study for 4 hours straight with complete focus!',
+    name: 'Ayesha Khan',
+    role: 'Pre-med Student',
+    content: 'FocusSpark helped me split long chapters into smaller study sessions. The focus timer and review prompts made it easier to stay consistent.',
     rating: 5,
   },
   {
     id: 2,
-    name: 'Marcus Johnson',
-    role: 'Engineering Major',
-    content: 'The AI tutor is like having a genius friend available 24/7. My grades improved by 30%!',
+    name: 'Hamza Ali',
+    role: 'Engineering Student',
+    content: 'I use it when my notes feel messy. The AI explanations and goal tracking help me understand what to revise next.',
     rating: 5,
   },
   {
     id: 3,
-    name: 'Emma Rodriguez',
-    role: 'Law Student',
-    content: 'Best productivity tool ever. The science-backed approach really works. Highly recommend!',
+    name: 'Zainab Fatima',
+    role: 'Computer Science Student',
+    content: 'The best part is that it keeps my study plan simple. I can focus, take breaks, and come back without losing track.',
     rating: 5,
   },
-];
-
-const brands = [
-  { name: 'Engadget', style: 'text-2xl' },
-  { name: 'Forbes', style: 'text-2xl' },
-  { name: 'VICE', style: 'text-2xl' },
-  { name: 'NBC', style: 'text-2xl' },
 ];
 
 export function Testimonials() {
@@ -188,29 +181,6 @@ export function Testimonials() {
           </div>
         </div>
 
-        {/* Brand Logos */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="text-center"
-        >
-          <p className="text-muted-foreground mb-8">As featured in</p>
-          <div className="flex flex-wrap justify-center items-center gap-12">
-            {brands.map((brand, index) => (
-              <motion.div
-                key={brand.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className={`${brand.style} text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer`}
-              >
-                {brand.name}
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
       </div>
     </section>
   );
