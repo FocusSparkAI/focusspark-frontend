@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -17,6 +17,7 @@ interface SignInPageProps {
 }
 
 const backgroundParticles = makeFloatingParticles(20, 11);
+const authZoomStyle: CSSProperties & { zoom: number } = { zoom: 0.9 };
 
 export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
   const [email, setEmail] = useState('');
@@ -106,7 +107,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-12 bg-background relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center px-6 py-12 bg-background relative overflow-hidden">
       {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {backgroundParticles.map((particle) => (
@@ -135,6 +136,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="w-full max-w-md relative z-10"
+        style={authZoomStyle}
       >
         {/* Glass Card */}
         <div className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-2xl">
@@ -261,7 +263,7 @@ export function SignInPage({ onNavigate, onAuthSuccess }: SignInPageProps) {
             type="button"
             variant="outline"
             onClick={handleGoogleSignIn}
-            className="w-full bg-white text-black hover:bg-gray-100 border-2 py-5"
+            className="w-full bg-white text-black hover:bg-gray-100 border-2 py-5 dark:bg-white dark:text-black dark:hover:bg-gray-100"
             size="lg"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

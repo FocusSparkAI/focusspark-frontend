@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Mail, Lock, Eye, EyeOff, User, GraduationCap, Loader2, PartyPopper, Rocket } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -32,6 +32,7 @@ const academicFocusOptions = [
 const backgroundParticles = makeFloatingParticles(25, 31);
 const confettiParticles = makeFloatingParticles(50, 47);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+const authZoomStyle: CSSProperties & { zoom: number } = { zoom: 0.9 };
 
 const isValidEmail = (email: string) => {
   const normalizedEmail = email.trim();
@@ -198,8 +199,9 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="w-full max-w-sm relative z-10 mx-auto"
+        style={authZoomStyle}
       >
-        <div className="bg-white dark:bg-card border border-border rounded-2xl p-6 shadow-lg w-full">
+        <div className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg w-full">
           {/* Header */}
           <div className="text-center mb-4">
             <motion.div
@@ -218,12 +220,12 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="text-sm"
+              className="text-sm text-muted-foreground"
             >
               You're one step away from smarter learning.
               <span className="flex items-center justify-center gap-2 mt-1">
                 Let's personalize your FocusSpark journey
-                <Rocket className="w-4 h-4 text-blue-400" />
+                <Rocket className="w-4 h-4 text-blue-500 dark:text-blue-400" />
               </span>
             </motion.p>
           </div>
@@ -420,15 +422,17 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
                     setFormData({ ...formData, agreedToTerms: checked as boolean });
                     setErrors({ ...errors, agreedToTerms: '' });
                   }}
-                  className={`mt-0.5 ${errors.agreedToTerms ? 'border-red-500' : ''}`}
+                  className={`mt-0.5 border-border bg-input-background dark:bg-input/30 ${
+                    errors.agreedToTerms ? 'border-red-500' : ''
+                  }`}
                 />
                 <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer">
                   I agree to the{' '}
-                  <a href="#" className="text-blue-400 hover:text-blue-300">
+                  <a href="#" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
                     privacy policy
                   </a>{' '}
                   and{' '}
-                  <a href="#" className="text-blue-400 hover:text-blue-300">
+                  <a href="#" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
                     terms
                   </a>
                   .
@@ -478,7 +482,7 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
                 type="button"
                 onClick={handleGoogleSignUp}
                 variant="outline"
-                className="w-full h-10 bg-white text-black hover:bg-gray-100 border-2"
+                className="w-full h-10 bg-white text-black hover:bg-gray-100 border-2 dark:bg-white dark:text-black dark:hover:bg-gray-100"
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path
@@ -509,7 +513,7 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
             <span className="text-muted-foreground">Already have an account? </span>
             <button
               onClick={() => onNavigate('signin')}
-              className="text-blue-400 hover:text-blue-300 transition-colors"
+              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
             >
               Sign in
             </button>
@@ -522,7 +526,7 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
             onClick={() => onNavigate('home')}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            Back to Home
+            ← Back to Home
           </button>
         </div>
 
