@@ -37,6 +37,7 @@ import axios from 'axios';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { DeleteAccountDialog } from '../../components/account/DeleteAccountDialog';
 import { getErrorMessage } from '../../utils/apiTypes';
+import { setUserTimeZone } from '../../utils/timezone';
 
 interface ProfileScreenProps {
   onNavigate: (page: string) => void;
@@ -120,6 +121,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
           setBio(data.bio ?? '');
           setTempBio(data.bio ?? '');
           setAvatarUrl(resolveAssetUrl(data.avatar_url ?? data.avatarUrl ?? ''));
+          setUserTimeZone(data.timezone);
         }
       } catch (err: unknown) {
         toast.error(getErrorMessage(err, 'Failed to load profile'));

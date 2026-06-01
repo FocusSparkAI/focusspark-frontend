@@ -12,12 +12,14 @@ function getNotificationKey(notification: SoundNotification) {
 }
 
 export function playNotificationSound() {
+  if (!audioUnlocked) return false;
+
   try {
     const AudioContextCtor =
       window.AudioContext ??
       (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
-    if (!AudioContextCtor) return;
+    if (!AudioContextCtor) return false;
 
     const audioContext = new AudioContextCtor();
     if (audioContext.state === 'suspended') {
@@ -38,8 +40,10 @@ export function playNotificationSound() {
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.18);
     oscillator.onended = () => void audioContext.close();
+    return true;
   } catch {
     // Browsers can block audio until the user interacts with the page.
+    return false;
   }
 }
 
@@ -74,13 +78,14 @@ export function playSoundForNewUnreadNotifications(notifications: SoundNotificat
     return sessionStorage.getItem(`focusspark-notification-sound-${key}`) !== 'true';
   });
 
-  unread.forEach((notification) => {
-    const key = getNotificationKey(notification);
-    playedNotificationKeys.add(key);
-    sessionStorage.setItem(`focusspark-notification-sound-${key}`, 'true');
-  });
-
   if (newUnread) {
-    playNotificationSound();
+    const didPlay = playNotificationSound();
+    if (!didPlay) return;
+
+    unread.forEach((notification) => {
+      const key = getNotificationKey(notification);
+      playedNotificationKeys.add(key);
+      sessionStorage.setItem(`focusspark-notification-sound-${key}`, 'true');
+    });
   }
 }

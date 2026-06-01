@@ -31,6 +31,7 @@ import { useFocus } from '../../hooks/useFocus';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { DeleteAccountDialog } from '../../components/account/DeleteAccountDialog';
 import { getErrorMessage } from '../../utils/apiTypes';
+import { formatUserDateTime, setUserTimeZone } from '../../utils/timezone';
 
 interface SettingsScreenProps {
   onNavigate: (page: string) => void;
@@ -63,18 +64,6 @@ const aiProviderOptions: Array<{ value: AIProvider; label: string; model: string
 const aiDefaultModelByProvider: Record<AIProvider, string> = {
   openai: 'gpt-4.1',
   gemini: 'gemini-2.5-flash',
-};
-
-const formatLastLogin = (value: unknown) => {
-  if (!value) return '';
-
-  const date = value instanceof Date ? value : new Date(String(value));
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
 };
 
 export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScreenProps) {
@@ -133,17 +122,16 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       })
       .then((response) => {
         const data = response.data;
+        setUserTimeZone(data?.timezone);
         setEmail(data?.email ?? '');
-        setLastLogin(
-          formatLastLogin(
-            data?.last_login ??
-              data?.lastLogin ??
-              data?.previous_login ??
-              data?.previousLogin ??
-              data?.last_login_at ??
-              data?.lastLoginAt,
-          ),
-        );
+        const rawLastLogin =
+          data?.last_login ??
+          data?.lastLogin ??
+          data?.previous_login ??
+          data?.previousLogin ??
+          data?.last_login_at ??
+          data?.lastLoginAt;
+        setLastLogin(rawLastLogin ? formatUserDateTime(String(rawLastLogin)) : '');
       })
       .catch(() => {
         toast.error('Failed to load account settings');

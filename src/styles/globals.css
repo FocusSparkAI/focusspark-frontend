@@ -223,6 +223,12 @@
                 border-color 0.7s cubic-bezier(0.4, 0, 0.2, 1),
                 box-shadow 0.7s cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  :where(button, a, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"], [role="combobox"]):focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--ring) 24%, transparent);
+  }
 }
 
 /**

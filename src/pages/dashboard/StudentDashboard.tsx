@@ -40,6 +40,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord, getBoolean, getNumber, getString } from '../../utils/apiTypes';
+import { formatUserDateTime, setUserTimeZone } from '../../utils/timezone';
 
 interface StudentDashboardProps {
   onNavigate: (page: string) => void;
@@ -59,7 +60,7 @@ type AchievementSummary = {
 };
 
 type AchievementPopup = {
-  achievement: AchievementSummary;
+  achievements: AchievementSummary[];
 };
 
 type DashboardGoal = ApiRecord & {
@@ -258,17 +259,17 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
           }))
         : [];
 
-      const unlockedAchievement = achievements
+      const unlockedAchievements = achievements
         .filter((achievement) => achievement.unlocked)
         .sort((left, right) => {
           const rightTime = right.unlockedAt ? new Date(right.unlockedAt).getTime() : 0;
           const leftTime = left.unlockedAt ? new Date(left.unlockedAt).getTime() : 0;
           return rightTime - leftTime;
         })
-        .find((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
+        .filter((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
 
-      if (unlockedAchievement) {
-        setAchievementPopup({ achievement: unlockedAchievement });
+      if (unlockedAchievements.length > 0) {
+        setAchievementPopup({ achievements: unlockedAchievements });
       }
     } catch (error) {
       console.warn('Achievement unlock popup failed.', error);
@@ -278,6 +279,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
       const profileResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
         headers,
       });
+      setUserTimeZone(profileResponse.data?.timezone);
       const nextProfileName =
         profileResponse.data?.full_name ??
         profileResponse.data?.fullName ??
@@ -327,15 +329,23 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
     ? Math.round((Number(activeGoal.current_minutes ?? 0) / Number(activeGoal.target_minutes)) * 100)
     : 0;
   const AchievementPopupIcon = achievementPopup
-    ? iconByBadgeName[achievementPopup.achievement.badgeIcon] ?? Award
+    ? iconByBadgeName[achievementPopup.achievements[0]?.badgeIcon ?? ''] ?? Award
     : Award;
 
 
   const closeAchievementPopup = () => {
-    if (achievementPopup) {
-      localStorage.setItem(achievementPopupSeenKey(achievementPopup.achievement), 'true');
-    }
-    setAchievementPopup(null);
+    setAchievementPopup((currentPopup) => {
+      if (!currentPopup) return null;
+
+      const [currentAchievement, ...remainingAchievements] = currentPopup.achievements;
+      if (currentAchievement) {
+        localStorage.setItem(achievementPopupSeenKey(currentAchievement), 'true');
+      }
+
+      return remainingAchievements.length > 0
+        ? { achievements: remainingAchievements }
+        : null;
+    });
   };
 
   const stats = [
@@ -704,7 +714,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                         <div>
                           <p className="text-sm">{activity.label}</p>
                           <p className="text-xs text-secondary">
-                            {activity.time ? new Date(activity.time).toLocaleString() : 'Recent'}
+                            {activity.time ? formatUserDateTime(String(activity.time)) : 'Recent'}
                           </p>
                         </div>
                       </div>
@@ -721,7 +731,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
 
       <AchievementCelebrationPopup
         isVisible={achievementPopup !== null}
-        achievement={achievementPopup?.achievement ?? null}
+        achievement={achievementPopup?.achievements[0] ?? null}
         Icon={AchievementPopupIcon}
         onClose={closeAchievementPopup}
         onViewBadges={() => {

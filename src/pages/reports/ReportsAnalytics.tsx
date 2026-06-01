@@ -25,6 +25,7 @@ import {
 import { toast } from 'sonner';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord } from '../../utils/apiTypes';
+import { formatUserDateKey, formatUserMonth } from '../../utils/timezone';
 
 interface ReportsAnalyticsProps {
   onNavigate: (page: string) => void;
@@ -68,24 +69,17 @@ const getSessionMinutes = (session: StudySession) =>
 
 const HEATMAP_DAYS_PER_WEEK = 7;
 const HEATMAP_LEVELS = [
-  { label: '0 min', min: 0, max: 0, color: '#e5e7eb' },
-  { label: '1-29 min', min: 1, max: 29, color: '#99f6e4' },
-  { label: '30-59 min', min: 30, max: 59, color: '#2dd4bf' },
-  { label: '60-89 min', min: 60, max: 89, color: '#0ea5e9' },
-  { label: '90+ min', min: 90, max: Infinity, color: '#2563eb' },
+  { label: '0 min', min: 0, max: 0, color: '#cbd5e1' },
+  { label: '1-29 min', min: 1, max: 29, color: '#5eead4' },
+  { label: '30-59 min', min: 30, max: 59, color: '#14b8a6' },
+  { label: '60-89 min', min: 60, max: 89, color: '#0284c7' },
+  { label: '90+ min', min: 90, max: Infinity, color: '#1d4ed8' },
 ];
-
-const formatLocalDateKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const toDateKey = (value: unknown) => {
   if (!value) return null;
-  const date = new Date(String(value));
-  return Number.isNaN(date.getTime()) ? null : formatLocalDateKey(date);
+  const dateKey = formatUserDateKey(String(value));
+  return dateKey || null;
 };
 
 const toGoalDateKey = (value: unknown) => {
@@ -217,7 +211,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       const weekdayOffset = (date.getDay() + 6) % HEATMAP_DAYS_PER_WEEK;
 
       data.push({
-        date: formatLocalDateKey(date),
+        date: formatUserDateKey(date),
         minutes: 0,
         sessions: 0,
         distractions: 0,
@@ -256,11 +250,11 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       const firstDayInColumn = displayedHeatmapData.find((day) => day.column === column);
       if (!firstDayInColumn) return '';
 
-      const currentMonth = new Date(`${firstDayInColumn.date}T00:00:00`).toLocaleString('en-US', { month: 'short' });
+      const currentMonth = formatUserMonth(`${firstDayInColumn.date}T00:00:00`);
       const previousColumn = displayedHeatmapData.find((day) => day.column === column - 1);
       if (!previousColumn) return currentMonth;
 
-      const previousMonth = new Date(`${previousColumn.date}T00:00:00`).toLocaleString('en-US', { month: 'short' });
+      const previousMonth = formatUserMonth(`${previousColumn.date}T00:00:00`);
       return currentMonth === previousMonth ? '' : currentMonth;
     });
 
@@ -269,7 +263,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const selectedDayData = selectedDay
     ? displayedHeatmapData.find((d) => d.date === selectedDay)
     : null;
-  const todayDateKey = formatLocalDateKey(new Date());
+  const todayDateKey = formatUserDateKey(new Date());
 
   useEffect(() => {
     const loadReports = async () => {
@@ -619,6 +613,13 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
                               ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-background'
                               : ''
                           }`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={
+                            day.minutes > 0
+                              ? `${day.date}: ${day.minutes} focus minutes across ${day.sessions} completed sessions`
+                              : `${day.date}: no recorded focus activity`
+                          }
                           style={{
                             gridColumn: day.column,
                             gridRow: day.row,
@@ -628,6 +629,12 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
                             border: day.minutes === 0 ? '1px solid rgba(100, 116, 139, 0.35)' : '1px solid transparent',
                           }}
                           onClick={() => handleDayClick(day)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleDayClick(day);
+                            }
+                          }}
                           title={
                             day.minutes > 0
                               ? `${day.date}: active, ${day.minutes} min, ${day.sessions} completed sessions`

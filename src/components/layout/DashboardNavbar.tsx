@@ -25,6 +25,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { playSoundForNewUnreadNotifications, unlockNotificationSound } from '../../utils/notificationSound';
+import { formatUserDate, setUserTimeZone } from '../../utils/timezone';
 
 function resolveAssetUrl(url: string) {
   if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
@@ -70,7 +71,7 @@ function formatNotificationTime(value: string) {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 
-  return new Date(value).toLocaleDateString();
+  return formatUserDate(value);
 }
 
 function getNotificationIcon(type: string) {
@@ -105,6 +106,7 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
         headers: getAuthHeaders(),
       });
       const data = response.data;
+      setUserTimeZone(data?.timezone);
       const nextAvatarUrl = resolveAssetUrl(data?.avatar_url ?? data?.avatarUrl ?? '');
       const nextDisplayName = data?.full_name ?? data?.fullName ?? data?.name ?? '';
       setAvatarUrl(nextAvatarUrl);
@@ -310,11 +312,10 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
                       key={notification.id}
                       type="button"
                       onClick={() => void markNotificationRead(notification)}
-                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                        notification.read
+                      className={`w-full rounded-lg border p-3 text-left transition-colors ${notification.read
                           ? 'border-transparent hover:bg-accent/50'
                           : 'border-blue-500/20 bg-blue-500/10'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${iconClass}`}>

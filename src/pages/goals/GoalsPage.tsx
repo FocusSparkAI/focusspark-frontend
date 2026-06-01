@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord } from '../../utils/apiTypes';
+import { formatUserDateKey } from '../../utils/timezone';
 
 interface GoalsPageProps {
   onNavigate: (page: string) => void;
@@ -27,22 +28,15 @@ type StudyGoal = ApiRecord & {
   updated_at?: string;
 };
 
-const formatDateKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const todayKey = () => formatDateKey(new Date());
+const todayKey = () => formatUserDateKey(new Date());
 
 const goalDateKey = (goal: StudyGoal) => {
   if (typeof goal?.goal_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal.goal_date)) return goal.goal_date;
   if (typeof goal?.due_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal.due_date)) return goal.due_date;
 
   const raw = goal?.created_at ?? goal?.updated_at;
-  const date = raw ? new Date(raw) : new Date();
-  return Number.isNaN(date.getTime()) ? todayKey() : formatDateKey(date);
+  const dateKey = raw ? formatUserDateKey(String(raw)) : todayKey();
+  return dateKey || todayKey();
 };
 
 const goalProgress = (goal: StudyGoal) => {

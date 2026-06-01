@@ -14,6 +14,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { formatUserDateTime } from '../../utils/timezone';
 
 interface NotificationsPageProps {
   onNavigate: (page: string) => void;
@@ -51,7 +52,7 @@ function formatNotificationTime(value: string) {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 
-  return new Date(value).toLocaleString();
+  return formatUserDateTime(value);
 }
 
 function getNotificationIcon(type: string) {
