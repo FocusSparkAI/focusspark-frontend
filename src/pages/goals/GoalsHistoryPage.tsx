@@ -113,7 +113,7 @@ export function GoalsHistoryPage({ onNavigate }: GoalsHistoryPageProps) {
             <p className="mt-1 text-sm text-secondary">
               {goal.current_minutes ?? 0}/{goalTargetMinutes(goal)} min
             </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-300/80 dark:bg-slate-700/70">
               <div className="h-full bg-primary" style={{ width: `${goalProgress(goal)}%` }} />
             </div>
           </div>
@@ -125,7 +125,7 @@ export function GoalsHistoryPage({ onNavigate }: GoalsHistoryPageProps) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="flex w-full items-center justify-between gap-3 px-8 py-4 lg:px-10">
+        <div className="flex w-full flex-col items-start justify-between gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-6 lg:px-10">
           <div className="flex min-w-0 items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => onNavigate('dashboard')}>
               <Home className="h-5 w-5" />

@@ -94,7 +94,7 @@ export function VerifyEmailPage({ onContinue }: VerifyEmailPageProps) {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
-          className="w-full rounded-2xl border border-border bg-card p-8 text-center shadow-xl"
+          className="w-full rounded-2xl border border-border bg-card p-5 text-center shadow-xl sm:p-8"
         >
           <div
             className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/20"

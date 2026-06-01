@@ -45,7 +45,7 @@ export function HeroSectionDark({ onNavigate }: HeroSectionDarkProps) {
           className="text-left"
         >
           <motion.h1
-            className="text-5xl sm:text-6xl lg:text-6xl mb-6 text-white leading-[0.98]"
+            className="text-4xl sm:text-5xl lg:text-6xl mb-6 text-white leading-[1.02]"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.8 }}
@@ -64,7 +64,7 @@ export function HeroSectionDark({ onNavigate }: HeroSectionDarkProps) {
           </motion.p>
 
           <motion.div
-            className="flex flex-wrap gap-4"
+            className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.8 }}
@@ -72,7 +72,7 @@ export function HeroSectionDark({ onNavigate }: HeroSectionDarkProps) {
             <Button
               size="lg"
               onClick={() => onNavigate?.('signup')}
-              className="bg-white text-black hover:bg-white/90 hover:scale-105 transition-all px-8 py-6"
+              className="bg-white text-black hover:bg-white/90 hover:scale-105 transition-all px-6 py-6 sm:px-8"
             >
               <Sparkles className="w-5 h-5 mr-2" />
               Get Started
@@ -81,7 +81,7 @@ export function HeroSectionDark({ onNavigate }: HeroSectionDarkProps) {
               size="lg"
               variant="ghost"
               onClick={() => onNavigate?.('dashboard')}
-              className="border-2 border-white/20 bg-transparent text-white hover:bg-white/10 hover:border-white/40 hover:text-white hover:scale-105 transition-all px-8 py-6"
+              className="border-2 border-white/20 bg-transparent text-white hover:bg-white/10 hover:border-white/40 hover:text-white hover:scale-105 transition-all px-6 py-6 sm:px-8"
             >
               <LayoutDashboard className="w-5 h-5 mr-2" />
               Go to Dashboard

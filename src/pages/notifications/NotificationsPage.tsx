@@ -146,8 +146,8 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="w-full px-8 py-4 lg:px-10">
-          <div className="flex items-center justify-between">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -206,7 +206,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
 
             {!isLoading && hasError && (
               <Card className="border-border bg-card">
-                <CardContent className="p-8 text-center">
+                <CardContent className="p-5 text-center sm:p-8">
                   <Bell className="mx-auto h-10 w-10 text-secondary" />
                   <p className="mt-4 font-medium">No notifications found.</p>
                   <p className="mt-1 text-sm text-secondary">
@@ -218,7 +218,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
 
             {!isLoading && !hasError && notifications.length === 0 && (
               <Card className="border-border bg-card">
-                <CardContent className="p-8 text-center">
+                <CardContent className="p-5 text-center sm:p-8">
                   <Bell className="mx-auto h-10 w-10 text-secondary" />
                   <p className="mt-4 font-medium">No notifications yet.</p>
                   <p className="mt-1 text-sm text-secondary">

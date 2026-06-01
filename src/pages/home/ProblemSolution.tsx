@@ -36,7 +36,7 @@ export function ProblemSolution() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="bg-card border border-border rounded-2xl p-8 glow-blue-purple"
+            className="bg-card border border-border rounded-2xl px-6 py-8 glow-blue-purple sm:px-8 sm:py-10"
           >
             <div className="mb-6">
               <h3 className="text-2xl mb-2 text-foreground">119% Productivity Increase</h3>

@@ -1,4 +1,18 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap");
+
+.mobile-dashboard-menu-trigger {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .dashboard-sidebar-shell {
+    display: none;
+  }
+
+  .mobile-dashboard-menu-trigger {
+    display: flex;
+  }
+}
 /*! tailwindcss v4.1.3 | MIT License | https://tailwindcss.com */
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {

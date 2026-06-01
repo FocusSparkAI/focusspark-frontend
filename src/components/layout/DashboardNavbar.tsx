@@ -3,12 +3,16 @@ import axios from 'axios';
 import {
   AlertCircle,
   Award,
+  BarChart3,
   Bell,
   Clock,
   Info,
   LayoutDashboard,
+  Menu,
   Sun,
   Moon,
+  Target,
+  TrendingUp,
   User as UserIcon,
   Settings,
   LogOut,
@@ -34,6 +38,7 @@ function resolveAssetUrl(url: string) {
 
 interface DashboardNavbarProps {
   onNavigate?: (page: string) => void;
+  currentPage?: string;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 }
@@ -49,6 +54,17 @@ type DashboardNotification = {
 
 const PROFILE_NAME_STORAGE_KEY = 'focusspark-profile-name';
 const PROFILE_AVATAR_STORAGE_KEY = 'focusspark-profile-avatar-url';
+
+const mobileMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'goals', label: 'Goals', icon: Target },
+  { id: 'achievements', label: 'Achievements', icon: Award },
+  { id: 'reports', label: 'Reports', icon: BarChart3 },
+  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'profile', label: 'Profile', icon: UserIcon },
+];
 
 function getAuthHeaders() {
   const token = localStorage.getItem('auth_token');
@@ -90,7 +106,12 @@ function getNotificationIconClass(type: string) {
   return 'bg-slate-500/12 text-slate-500';
 }
 
-export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardNavbarProps) {
+export function DashboardNavbar({
+  onNavigate,
+  currentPage = 'dashboard',
+  theme,
+  onToggleTheme,
+}: DashboardNavbarProps) {
   const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState(false);
@@ -236,13 +257,37 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/85 backdrop-blur-xl">
-      <div className="flex h-20 items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="flex h-20 items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="mobile-dashboard-menu-trigger h-10 w-10 shrink-0 items-center justify-center rounded-full border border-blue-500/35 bg-blue-500/10 text-blue-500 transition-colors hover:bg-blue-500/15 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Open dashboard menu</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {mobileMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentPage === item.id;
+                return (
+                  <DropdownMenuItem
+                    key={item.id}
+                    onClick={() => onNavigate?.(item.id)}
+                    className={isActive ? 'bg-accent text-accent-foreground' : undefined}
+                  >
+                    <Icon className={`mr-2 h-4 w-4 ${isActive ? 'text-blue-500' : ''}`} />
+                    {item.label}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10">
             <LayoutDashboard className="h-5 w-5 text-blue-500" />
           </div>
           <div className="min-w-0">
-            <h2 className="truncate text-2xl font-semibold leading-tight tracking-normal">Dashboard</h2>
+            <h2 className="truncate text-xl font-semibold leading-tight tracking-normal sm:text-2xl">Dashboard</h2>
             <p className="truncate text-xs text-secondary">Overview</p>
           </div>
         </div>
@@ -266,7 +311,7 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
                 <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
               )}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-80">
               <DropdownMenuLabel className="flex items-center justify-between gap-3">
                 <span>Notifications</span>
                 {unreadCount > 0 && (

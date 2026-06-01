@@ -322,8 +322,8 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="w-full px-8 py-4 lg:px-10">
-          <div className="flex items-center justify-between">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
+          <div className="flex w-full flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -342,6 +342,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
             </div>
 
             <Button
+              className="self-end sm:ml-auto"
               variant="outline"
               onClick={() => onNavigate('settings')}
             >

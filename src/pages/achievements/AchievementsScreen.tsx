@@ -234,8 +234,8 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="w-full px-8 py-4 lg:px-10">
-          <div className="flex items-center justify-between">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -279,13 +279,13 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
         {/* Achievement Grid */}
         {isLoading ? (
           <Card className="border-border bg-card shadow-sm">
-            <CardContent className="flex min-h-[220px] items-center justify-center p-8 text-center text-secondary">
+            <CardContent className="flex min-h-[220px] items-center justify-center p-5 text-center text-secondary sm:p-8">
               Loading achievements...
             </CardContent>
           </Card>
         ) : achievements.length === 0 ? (
           <Card className="border-border bg-card shadow-sm">
-            <CardContent className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-8 text-center">
+            <CardContent className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-5 text-center sm:p-8">
               <Award className="h-10 w-10 text-blue-500" />
               <h2 className="text-xl">No achievements available</h2>
               <p className="max-w-md text-sm text-secondary">

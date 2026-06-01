@@ -224,7 +224,6 @@ function AchievementCelebrationPopup({
 }
 
 export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDashboardProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<ApiRecord | null>(null);
   const [profileName, setProfileName] = useState(readCachedProfileName);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -380,18 +379,24 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   ];
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <DashboardSidebar
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onNavigate={onNavigate}
-        currentPage="dashboard"
-      />
+    <div className="flex min-h-screen bg-background">
+      <div className="dashboard-sidebar-shell shrink-0">
+        <DashboardSidebar
+          collapsed={false}
+          onNavigate={onNavigate}
+          currentPage="dashboard"
+        />
+      </div>
 
-      <div className="flex-1 flex flex-col">
-        <DashboardNavbar onNavigate={onNavigate} theme={theme} onToggleTheme={onToggleTheme} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <DashboardNavbar
+          onNavigate={onNavigate}
+          currentPage="dashboard"
+          theme={theme}
+          onToggleTheme={onToggleTheme}
+        />
 
-        <main className="flex-1 p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 overflow-auto p-5 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {loadError && (
               <div className="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">
@@ -402,22 +407,22 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-8 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 via-card to-purple-500/10 p-8 shadow-sm"
+              className="mb-8 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 via-card to-purple-500/10 p-6 shadow-sm sm:p-8"
             >
               <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div>
+                <div className="min-w-0">
                   <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-sm text-blue-300">
                     <Sparkles className="h-4 w-4" />
                     Progress Command Center
                   </div>
-                  <h1 className="text-4xl mb-3">
+                  <h1 className="mb-3 text-3xl sm:text-4xl">
                     Welcome back{profileName ? `, ${profileName}` : ''}!
                   </h1>
                   <p className="max-w-2xl text-secondary">
                     See your progress at a glance, review reports, track achievements, and keep your account settings in shape.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <Button onClick={() => onNavigate('reports')} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90">
                     View Reports
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -590,7 +595,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                         <span className="text-secondary">Badge collection</span>
                         <span>{badgesEarned}/{totalBadges}</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-300/80 dark:bg-slate-700/70">
                         <motion.div
                           className="h-full bg-gradient-to-r from-yellow-400 to-orange-500"
                           initial={{ width: 0 }}
@@ -625,7 +630,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                           {activeGoal.current_minutes ?? 0}/{activeGoal.target_minutes ?? 0} min
                         </span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-300/80 dark:bg-slate-700/70">
                         <motion.div
                           className="h-full bg-gradient-to-r from-teal-500 to-blue-500"
                           initial={{ width: 0 }}

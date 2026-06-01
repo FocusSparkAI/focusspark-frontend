@@ -380,8 +380,8 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="w-full px-8 py-4 lg:px-10">
-          <div className="flex items-center justify-between">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
+          <div className="flex w-full flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -397,7 +397,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
               </div>
             </div>
 
-            <Button variant="outline" onClick={() => onNavigate('profile')}>
+            <Button className="self-end sm:ml-auto" variant="outline" onClick={() => onNavigate('profile')}>
               <User className="w-4 h-4 mr-2" />
               Profile
             </Button>
@@ -405,7 +405,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Sidebar - Categories */}
           <div className="lg:col-span-1">
@@ -582,7 +582,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                           <Label htmlFor="work-duration">Work Duration (minutes)</Label>
                           <Input
@@ -618,7 +618,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       <Separator />
 
                       {/* Timer Preview */}
-                      <div className="p-6 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30">
+                      <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 sm:p-6">
                         <p className="text-sm text-secondary mb-3">Preview:</p>
                         <div className="flex items-center justify-center gap-4">
                           <div className="text-center">
@@ -650,14 +650,14 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                         <div>
                           <Label>Enable Camera-based Focus Detection</Label>
                           <p className="text-xs text-secondary">
                             Use webcam to detect attention and focus in real-time
                           </p>
                         </div>
-                        <Switch checked={isDetectionEnabled} onCheckedChange={(checked) => {
+                        <Switch className="shrink-0" checked={isDetectionEnabled} onCheckedChange={(checked) => {
                           setIsDetectionEnabled(checked);
                           toast.success(checked ? 'Focus Detection enabled' : 'Focus Detection disabled');
                         }} />
@@ -693,7 +693,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                         <div>
                           <Label>Extension Notifications</Label>
                           <p className="text-xs text-secondary">
@@ -701,19 +701,20 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                           </p>
                         </div>
                         <Switch
+                          className="shrink-0"
                           checked={desktopNotifications}
                           onCheckedChange={setDesktopNotifications}
                         />
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                         <div>
                           <Label>Sound Enabled</Label>
                           <p className="text-xs text-secondary">
                             Play audio alerts for notifications
                           </p>
                         </div>
-                        <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
+                        <Switch className="shrink-0" checked={soundEnabled} onCheckedChange={setSoundEnabled} />
                       </div>
 
                       <div className="flex justify-end">

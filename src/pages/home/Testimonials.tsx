@@ -116,7 +116,7 @@ export function Testimonials() {
                 }}
                 className="absolute w-full px-4"
               >
-                <div className="bg-card border border-border rounded-2xl p-8 md:p-12">
+                <div className="bg-card border border-border rounded-2xl p-5 sm:p-8 md:p-12">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-border">
                       <UserCircle className="w-12 h-12 text-blue-400" />
