@@ -204,6 +204,18 @@
 }
 
 @layer base {
+  input[type='password']::-ms-reveal,
+  input[type='password']::-ms-clear {
+    display: none;
+  }
+
+  input[type='password']::-webkit-credentials-auto-fill-button,
+  input[type='password']::-webkit-caps-lock-indicator {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+  }
+
   *, :after, :before, ::backdrop {
     box-sizing: border-box;
     border: 0 solid;

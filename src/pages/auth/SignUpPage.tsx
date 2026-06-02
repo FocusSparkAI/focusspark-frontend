@@ -130,15 +130,12 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
 
       const resp = await axios.post(url, payload);
 
-      // If backend returns an access token, store it
-      const token = resp?.data?.access_token || resp?.data?.token;
-      if (token) {
-        localStorage.setItem('auth_token', token);
-      }
+      localStorage.removeItem('auth_token');
+      sessionStorage.setItem('pending_signup_email', resp?.data?.email || payload.email);
       setUserTimeZone(payload.timezone);
 
       setShowConfetti(true);
-      toast.success('Account created successfully!', {
+      toast.success('Verification code sent!', {
         icon: <PartyPopper className="w-4 h-4" />,
       });
 
