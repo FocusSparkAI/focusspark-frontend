@@ -3,12 +3,16 @@ import axios from 'axios';
 import {
   AlertCircle,
   Award,
+  BarChart3,
   Bell,
   Clock,
   Info,
   LayoutDashboard,
+  Menu,
   Sun,
   Moon,
+  Target,
+  TrendingUp,
   User as UserIcon,
   Settings,
   LogOut,
@@ -25,6 +29,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { playSoundForNewUnreadNotifications, unlockNotificationSound } from '../../utils/notificationSound';
+import { formatUserDate, parseBackendDate, setUserTimeZone } from '../../utils/timezone';
 
 function resolveAssetUrl(url: string) {
   if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
@@ -33,6 +38,7 @@ function resolveAssetUrl(url: string) {
 
 interface DashboardNavbarProps {
   onNavigate?: (page: string) => void;
+  currentPage?: string;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 }
@@ -49,13 +55,24 @@ type DashboardNotification = {
 const PROFILE_NAME_STORAGE_KEY = 'focusspark-profile-name';
 const PROFILE_AVATAR_STORAGE_KEY = 'focusspark-profile-avatar-url';
 
+const mobileMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'goals', label: 'Goals', icon: Target },
+  { id: 'achievements', label: 'Achievements', icon: Award },
+  { id: 'reports', label: 'Reports', icon: BarChart3 },
+  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'profile', label: 'Profile', icon: UserIcon },
+];
+
 function getAuthHeaders() {
   const token = localStorage.getItem('auth_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function formatNotificationTime(value: string) {
-  const createdAt = new Date(value).getTime();
+  const createdAt = parseBackendDate(value).getTime();
   if (!Number.isFinite(createdAt)) return '';
 
   const diffSeconds = Math.max(0, Math.floor((Date.now() - createdAt) / 1000));
@@ -70,7 +87,7 @@ function formatNotificationTime(value: string) {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 
-  return new Date(value).toLocaleDateString();
+  return formatUserDate(value);
 }
 
 function getNotificationIcon(type: string) {
@@ -89,7 +106,12 @@ function getNotificationIconClass(type: string) {
   return 'bg-slate-500/12 text-slate-500';
 }
 
-export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardNavbarProps) {
+export function DashboardNavbar({
+  onNavigate,
+  currentPage = 'dashboard',
+  theme,
+  onToggleTheme,
+}: DashboardNavbarProps) {
   const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState(false);
@@ -105,6 +127,7 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
         headers: getAuthHeaders(),
       });
       const data = response.data;
+      setUserTimeZone(data?.timezone);
       const nextAvatarUrl = resolveAssetUrl(data?.avatar_url ?? data?.avatarUrl ?? '');
       const nextDisplayName = data?.full_name ?? data?.fullName ?? data?.name ?? '';
       setAvatarUrl(nextAvatarUrl);
@@ -155,6 +178,25 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
     unlockNotificationSound();
     const timeoutId = window.setTimeout(() => void loadNotifications(), 0);
     return () => window.clearTimeout(timeoutId);
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    let timeoutId: number | undefined;
+
+    const onNotificationsChanged = () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+      timeoutId = window.setTimeout(() => void loadNotifications(), 150);
+    };
+
+    window.addEventListener('focusspark:notifications-changed', onNotificationsChanged);
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+      window.removeEventListener('focusspark:notifications-changed', onNotificationsChanged);
+    };
   }, [loadNotifications]);
 
   useEffect(() => {
@@ -234,13 +276,37 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/85 backdrop-blur-xl">
-      <div className="flex h-20 items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="flex h-20 items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="mobile-dashboard-menu-trigger h-10 w-10 shrink-0 items-center justify-center rounded-full border border-blue-500/35 bg-blue-500/10 text-blue-500 transition-colors hover:bg-blue-500/15 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Open dashboard menu</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {mobileMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentPage === item.id;
+                return (
+                  <DropdownMenuItem
+                    key={item.id}
+                    onClick={() => onNavigate?.(item.id)}
+                    className={isActive ? 'bg-accent text-accent-foreground' : undefined}
+                  >
+                    <Icon className={`mr-2 h-4 w-4 ${isActive ? 'text-blue-500' : ''}`} />
+                    {item.label}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10">
             <LayoutDashboard className="h-5 w-5 text-blue-500" />
           </div>
           <div className="min-w-0">
-            <h2 className="truncate text-2xl font-semibold leading-tight tracking-normal">Dashboard</h2>
+            <h2 className="truncate text-xl font-semibold leading-tight tracking-normal sm:text-2xl">Dashboard</h2>
             <p className="truncate text-xs text-secondary">Overview</p>
           </div>
         </div>
@@ -264,7 +330,7 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
                 <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
               )}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-80">
               <DropdownMenuLabel className="flex items-center justify-between gap-3">
                 <span>Notifications</span>
                 {unreadCount > 0 && (
@@ -310,11 +376,10 @@ export function DashboardNavbar({ onNavigate, theme, onToggleTheme }: DashboardN
                       key={notification.id}
                       type="button"
                       onClick={() => void markNotificationRead(notification)}
-                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                        notification.read
+                      className={`w-full rounded-lg border p-3 text-left transition-colors ${notification.read
                           ? 'border-transparent hover:bg-accent/50'
                           : 'border-blue-500/20 bg-blue-500/10'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${iconClass}`}>

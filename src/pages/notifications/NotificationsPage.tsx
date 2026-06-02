@@ -14,6 +14,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { formatUserDateTime, parseBackendDate } from '../../utils/timezone';
 
 interface NotificationsPageProps {
   onNavigate: (page: string) => void;
@@ -36,7 +37,7 @@ function getAuthHeaders() {
 }
 
 function formatNotificationTime(value: string) {
-  const createdAt = new Date(value).getTime();
+  const createdAt = parseBackendDate(value).getTime();
   if (!Number.isFinite(createdAt)) return '';
 
   const diffSeconds = Math.max(0, Math.floor((Date.now() - createdAt) / 1000));
@@ -51,7 +52,7 @@ function formatNotificationTime(value: string) {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 
-  return new Date(value).toLocaleString();
+  return formatUserDateTime(value);
 }
 
 function getNotificationIcon(type: string) {
@@ -145,8 +146,8 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="w-full px-8 py-4 lg:px-10">
-          <div className="flex items-center justify-between">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -182,9 +183,9 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
             <motion.section
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl border border-border bg-card px-8 py-8 shadow-sm"
+              className="rounded-xl border border-border bg-card px-8 py-8 shadow-sm ring-1 ring-blue-500/10"
             >
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1 text-sm text-blue-500">
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-sm text-blue-600 dark:text-blue-300">
                 <Bell className="h-4 w-4 shrink-0" />
                 Notification center
               </div>
@@ -205,7 +206,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
 
             {!isLoading && hasError && (
               <Card className="border-border bg-card">
-                <CardContent className="p-8 text-center">
+                <CardContent className="p-5 text-center sm:p-8">
                   <Bell className="mx-auto h-10 w-10 text-secondary" />
                   <p className="mt-4 font-medium">No notifications found.</p>
                   <p className="mt-1 text-sm text-secondary">
@@ -217,7 +218,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
 
             {!isLoading && !hasError && notifications.length === 0 && (
               <Card className="border-border bg-card">
-                <CardContent className="p-8 text-center">
+                <CardContent className="p-5 text-center sm:p-8">
                   <Bell className="mx-auto h-10 w-10 text-secondary" />
                   <p className="mt-4 font-medium">No notifications yet.</p>
                   <p className="mt-1 text-sm text-secondary">
@@ -243,17 +244,17 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
                       className={`w-full rounded-xl border p-4 text-left transition-colors ${
                         notification.read
                           ? 'border-border bg-card hover:bg-accent/40'
-                          : 'border-blue-500/25 bg-blue-500/10'
+                          : 'border-border bg-card ring-1 ring-blue-500/20 hover:bg-accent/40'
                       }`}
                     >
                       <div className="flex items-start gap-4">
-                        <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500">
+                        <div className={notification.read ? 'rounded-lg bg-muted/50 p-2 text-secondary' : 'rounded-lg bg-blue-500/10 p-2 text-blue-500'}>
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium">{notification.title}</p>
-                            {!notification.read && <Badge>Unread</Badge>}
+                            {!notification.read && <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-300">Unread</Badge>}
                             <Badge variant="outline">{notification.type}</Badge>
                           </div>
                           <p className="mt-2 text-sm leading-6 text-secondary">

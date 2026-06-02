@@ -31,6 +31,7 @@ import { useFocus } from '../../hooks/useFocus';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { DeleteAccountDialog } from '../../components/account/DeleteAccountDialog';
 import { getErrorMessage } from '../../utils/apiTypes';
+import { formatUserDateTime, setUserTimeZone } from '../../utils/timezone';
 
 interface SettingsScreenProps {
   onNavigate: (page: string) => void;
@@ -65,20 +66,9 @@ const aiDefaultModelByProvider: Record<AIProvider, string> = {
   gemini: 'gemini-2.5-flash',
 };
 
-const formatLastLogin = (value: unknown) => {
-  if (!value) return '';
-
-  const date = value instanceof Date ? value : new Date(String(value));
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
-};
-
 export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScreenProps) {
   const { isDetectionEnabled, setIsDetectionEnabled } = useFocus();
+  const [draftDetectionEnabled, setDraftDetectionEnabled] = useState(isDetectionEnabled);
   const [activeCategory, setActiveCategory] = useState('account');
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
@@ -133,17 +123,16 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       })
       .then((response) => {
         const data = response.data;
+        setUserTimeZone(data?.timezone);
         setEmail(data?.email ?? '');
-        setLastLogin(
-          formatLastLogin(
-            data?.last_login ??
-              data?.lastLogin ??
-              data?.previous_login ??
-              data?.previousLogin ??
-              data?.last_login_at ??
-              data?.lastLoginAt,
-          ),
-        );
+        const rawLastLogin =
+          data?.last_login ??
+          data?.lastLogin ??
+          data?.previous_login ??
+          data?.previousLogin ??
+          data?.last_login_at ??
+          data?.lastLoginAt;
+        setLastLogin(rawLastLogin ? formatUserDateTime(String(rawLastLogin)) : '');
       })
       .catch(() => {
         toast.error('Failed to load account settings');
@@ -186,6 +175,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
 
         if (typeof data?.focus_alerts_enabled === 'boolean') {
           setIsDetectionEnabled(data.focus_alerts_enabled);
+          setDraftDetectionEnabled(data.focus_alerts_enabled);
         }
         if (typeof data?.notifications_enabled === 'boolean') {
           setDesktopNotifications(data.notifications_enabled);
@@ -327,10 +317,11 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       await axios.put(
         buildBackendUrl(BACKEND_ROUTES.study.settings.update),
         {
-          focus_alerts_enabled: isDetectionEnabled,
+          focus_alerts_enabled: draftDetectionEnabled,
         },
         { headers },
       );
+      setIsDetectionEnabled(draftDetectionEnabled);
       toast.success('Focus detection settings saved.');
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to save focus settings'));
@@ -392,9 +383,12 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="w-full px-8 py-4 lg:px-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
+          <div
+            className="flex min-h-16 w-full flex-col items-start gap-3 sm:block"
+            style={{ position: 'relative', paddingRight: 160 }}
+          >
+            <div className="flex min-w-0 items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -403,13 +397,22 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
               >
                 <Home className="w-5 h-5" />
               </Button>
-              <div>
+              <div className="min-w-0">
                 <h1 className="gradient-text">Settings</h1>
-                <p className="text-sm text-secondary">Customize your FocusSpark experience</p>
+                <p className="max-w-xl text-sm text-secondary">Customize your FocusSpark experience</p>
               </div>
             </div>
 
-            <Button variant="outline" onClick={() => onNavigate('profile')}>
+            <Button
+              variant="outline"
+              onClick={() => onNavigate('profile')}
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
+              }}
+            >
               <User className="w-4 h-4 mr-2" />
               Profile
             </Button>
@@ -417,7 +420,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Sidebar - Categories */}
           <div className="lg:col-span-1">
@@ -594,7 +597,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                           <Label htmlFor="work-duration">Work Duration (minutes)</Label>
                           <Input
@@ -630,7 +633,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       <Separator />
 
                       {/* Timer Preview */}
-                      <div className="p-6 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30">
+                      <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 sm:p-6">
                         <p className="text-sm text-secondary mb-3">Preview:</p>
                         <div className="flex items-center justify-center gap-4">
                           <div className="text-center">
@@ -662,17 +665,14 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                         <div>
                           <Label>Enable Camera-based Focus Detection</Label>
                           <p className="text-xs text-secondary">
                             Use webcam to detect attention and focus in real-time
                           </p>
                         </div>
-                        <Switch checked={isDetectionEnabled} onCheckedChange={(checked) => {
-                          setIsDetectionEnabled(checked);
-                          toast.success(checked ? 'Focus Detection enabled' : 'Focus Detection disabled');
-                        }} />
+                        <Switch className="shrink-0" checked={draftDetectionEnabled} onCheckedChange={setDraftDetectionEnabled} />
                       </div>
 
                       <Separator />
@@ -705,7 +705,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                         <div>
                           <Label>Extension Notifications</Label>
                           <p className="text-xs text-secondary">
@@ -713,19 +713,20 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                           </p>
                         </div>
                         <Switch
+                          className="shrink-0"
                           checked={desktopNotifications}
                           onCheckedChange={setDesktopNotifications}
                         />
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                         <div>
                           <Label>Sound Enabled</Label>
                           <p className="text-xs text-secondary">
                             Play audio alerts for notifications
                           </p>
                         </div>
-                        <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
+                        <Switch className="shrink-0" checked={soundEnabled} onCheckedChange={setSoundEnabled} />
                       </div>
 
                       <div className="flex justify-end">

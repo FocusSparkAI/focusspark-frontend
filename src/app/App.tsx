@@ -27,6 +27,7 @@ import { Footer } from '../components/layout/Footer';
 import { Toaster } from '../components/ui/sonner';
 import { FocusProvider } from '../context/FocusContext';
 import { BACKEND_ROUTES, buildBackendUrl } from '../config/backend';
+import { unlockNotificationSound } from '../utils/notificationSound';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('auth_token');
@@ -154,6 +155,10 @@ function AppRoutes() {
       navigate('/signin', { replace: true, state: { fromProtected: true } });
     }
   }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    unlockNotificationSound();
+  }, []);
 
   useEffect(() => window.scrollTo({ top: 0, behavior: 'smooth' }), [location.pathname]);
 

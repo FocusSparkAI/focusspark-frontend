@@ -40,6 +40,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord, getBoolean, getNumber, getString } from '../../utils/apiTypes';
+import { playSoundForNewUnreadNotifications } from '../../utils/notificationSound';
+import { formatUserDateTime, setUserTimeZone } from '../../utils/timezone';
 
 interface StudentDashboardProps {
   onNavigate: (page: string) => void;
@@ -59,7 +61,7 @@ type AchievementSummary = {
 };
 
 type AchievementPopup = {
-  achievement: AchievementSummary;
+  achievements: AchievementSummary[];
 };
 
 type DashboardGoal = ApiRecord & {
@@ -223,7 +225,6 @@ function AchievementCelebrationPopup({
 }
 
 export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDashboardProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<ApiRecord | null>(null);
   const [profileName, setProfileName] = useState(readCachedProfileName);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -258,17 +259,25 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
           }))
         : [];
 
-      const unlockedAchievement = achievements
+      const unlockedAchievements = achievements
         .filter((achievement) => achievement.unlocked)
         .sort((left, right) => {
           const rightTime = right.unlockedAt ? new Date(right.unlockedAt).getTime() : 0;
           const leftTime = left.unlockedAt ? new Date(left.unlockedAt).getTime() : 0;
           return rightTime - leftTime;
         })
-        .find((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
+        .filter((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
 
-      if (unlockedAchievement) {
-        setAchievementPopup({ achievement: unlockedAchievement });
+      if (unlockedAchievements.length > 0) {
+        setAchievementPopup({ achievements: unlockedAchievements });
+        playSoundForNewUnreadNotifications(
+          unlockedAchievements.map((achievement) => ({
+            id: `achievement-${achievement.id}`,
+            read: false,
+            created_at: achievement.unlockedAt,
+          })),
+        );
+        window.dispatchEvent(new CustomEvent('focusspark:notifications-changed'));
       }
     } catch (error) {
       console.warn('Achievement unlock popup failed.', error);
@@ -278,6 +287,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
       const profileResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
         headers,
       });
+      setUserTimeZone(profileResponse.data?.timezone);
       const nextProfileName =
         profileResponse.data?.full_name ??
         profileResponse.data?.fullName ??
@@ -326,16 +336,25 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   const activeGoalProgress = activeGoal?.target_minutes
     ? Math.round((Number(activeGoal.current_minutes ?? 0) / Number(activeGoal.target_minutes)) * 100)
     : 0;
+  const activeGoalProgressWidth = Math.min(100, Math.max(activeGoalProgress > 0 ? 8 : 0, activeGoalProgress));
   const AchievementPopupIcon = achievementPopup
-    ? iconByBadgeName[achievementPopup.achievement.badgeIcon] ?? Award
+    ? iconByBadgeName[achievementPopup.achievements[0]?.badgeIcon ?? ''] ?? Award
     : Award;
 
 
   const closeAchievementPopup = () => {
-    if (achievementPopup) {
-      localStorage.setItem(achievementPopupSeenKey(achievementPopup.achievement), 'true');
-    }
-    setAchievementPopup(null);
+    setAchievementPopup((currentPopup) => {
+      if (!currentPopup) return null;
+
+      const [currentAchievement, ...remainingAchievements] = currentPopup.achievements;
+      if (currentAchievement) {
+        localStorage.setItem(achievementPopupSeenKey(currentAchievement), 'true');
+      }
+
+      return remainingAchievements.length > 0
+        ? { achievements: remainingAchievements }
+        : null;
+    });
   };
 
   const stats = [
@@ -370,18 +389,24 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   ];
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <DashboardSidebar
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onNavigate={onNavigate}
-        currentPage="dashboard"
-      />
+    <div className="flex min-h-screen bg-background">
+      <div className="dashboard-sidebar-shell shrink-0">
+        <DashboardSidebar
+          collapsed={false}
+          onNavigate={onNavigate}
+          currentPage="dashboard"
+        />
+      </div>
 
-      <div className="flex-1 flex flex-col">
-        <DashboardNavbar onNavigate={onNavigate} theme={theme} onToggleTheme={onToggleTheme} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <DashboardNavbar
+          onNavigate={onNavigate}
+          currentPage="dashboard"
+          theme={theme}
+          onToggleTheme={onToggleTheme}
+        />
 
-        <main className="flex-1 p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 overflow-auto p-5 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {loadError && (
               <div className="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">
@@ -392,22 +417,22 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-8 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 via-card to-purple-500/10 p-8 shadow-sm"
+              className="mb-8 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 via-card to-purple-500/10 p-6 shadow-sm sm:p-8"
             >
               <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div>
+                <div className="min-w-0">
                   <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-sm text-blue-300">
                     <Sparkles className="h-4 w-4" />
                     Progress Command Center
                   </div>
-                  <h1 className="text-4xl mb-3">
+                  <h1 className="mb-3 text-3xl sm:text-4xl">
                     Welcome back{profileName ? `, ${profileName}` : ''}!
                   </h1>
                   <p className="max-w-2xl text-secondary">
                     See your progress at a glance, review reports, track achievements, and keep your account settings in shape.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <Button onClick={() => onNavigate('reports')} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90">
                     View Reports
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -580,7 +605,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                         <span className="text-secondary">Badge collection</span>
                         <span>{badgesEarned}/{totalBadges}</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-300/80 dark:bg-slate-700/70">
                         <motion.div
                           className="h-full bg-gradient-to-r from-yellow-400 to-orange-500"
                           initial={{ width: 0 }}
@@ -608,18 +633,21 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                 </CardHeader>
                 <CardContent className="flex h-full flex-col gap-4">
                   {activeGoal ? (
-                    <div className="rounded-lg border border-teal-500/30 bg-teal-500/10 p-3">
+                    <div className="rounded-lg border border-border bg-card p-3 ring-1 ring-teal-500/10">
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <p className="min-w-0 truncate text-sm font-medium">{activeGoal.title}</p>
                         <span className="shrink-0 text-xs text-secondary">
                           {activeGoal.current_minutes ?? 0}/{activeGoal.target_minutes ?? 0} min
                         </span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="mt-4 h-2.5 overflow-hidden rounded-full border border-teal-500/15 bg-slate-200/90 dark:bg-slate-700/80"
+                        aria-label={`Goal progress ${Math.min(100, Math.max(0, activeGoalProgress))}%`}
+                      >
                         <motion.div
-                          className="h-full bg-gradient-to-r from-teal-500 to-blue-500"
+                          className="h-full rounded-full bg-gradient-to-r from-teal-500 to-blue-500"
                           initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(100, activeGoalProgress)}%` }}
+                          animate={{ width: `${activeGoalProgressWidth}%` }}
                           transition={{ duration: 0.4 }}
                         />
                       </div>
@@ -704,7 +732,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                         <div>
                           <p className="text-sm">{activity.label}</p>
                           <p className="text-xs text-secondary">
-                            {activity.time ? new Date(activity.time).toLocaleString() : 'Recent'}
+                            {activity.time ? formatUserDateTime(String(activity.time)) : 'Recent'}
                           </p>
                         </div>
                       </div>
@@ -721,7 +749,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
 
       <AchievementCelebrationPopup
         isVisible={achievementPopup !== null}
-        achievement={achievementPopup?.achievement ?? null}
+        achievement={achievementPopup?.achievements[0] ?? null}
         Icon={AchievementPopupIcon}
         onClose={closeAchievementPopup}
         onViewBadges={() => {

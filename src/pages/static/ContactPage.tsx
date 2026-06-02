@@ -93,11 +93,12 @@ export function ContactPage() {
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
-              className="bg-card border border-border rounded-2xl p-8 glow-blue-purple"
+              className="bg-card border border-border rounded-2xl glow-blue-purple"
+              style={{ padding: 'clamp(20px, 4vw, 32px)' }}
             >
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
                 <div>
-                  <label htmlFor="name" className="block mb-2">
+                  <label htmlFor="name" className="block mb-2 text-sm font-medium">
                     Name
                   </label>
                   <Input
@@ -114,7 +115,7 @@ export function ContactPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block mb-2">
+                  <label htmlFor="email" className="block mb-2 text-sm font-medium">
                     Email
                   </label>
                   <Input
@@ -131,7 +132,7 @@ export function ContactPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block mb-2">
+                  <label htmlFor="message" className="block mb-2 text-sm font-medium">
                     Message
                   </label>
                   <Textarea
@@ -142,8 +143,8 @@ export function ContactPage() {
                     }
                     placeholder="Tell us what's on your mind..."
                     required
-                    rows={6}
-                    className="bg-background/50 border-border focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                    rows={5}
+                    className="min-h-28 bg-background/50 border-border focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none sm:min-h-36"
                   />
                 </div>
 

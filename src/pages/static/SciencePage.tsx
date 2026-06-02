@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Brain, Cpu, Waves, FileText } from 'lucide-react';
+import { Brain, Waves, FileText } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 
 export function SciencePage() {
@@ -56,12 +56,11 @@ export function SciencePage() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
             whileHover={{ y: -10, scale: 1.02 }}
-            className="bg-card border border-border rounded-2xl p-8 md:p-12 glow-blue-purple"
+            className="bg-card border border-border rounded-2xl p-5 glow-blue-purple sm:p-8 md:p-12"
           >
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Brain className="w-8 h-8 text-white" />
-                <Cpu className="w-6 h-6 text-white -ml-3" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600">
+                <Brain className="h-8 w-8 text-white" />
               </div>
             </div>
 
@@ -84,7 +83,7 @@ export function SciencePage() {
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
             whileHover={{ y: -10, scale: 1.02 }}
-            className="bg-card border border-border rounded-2xl p-8 md:p-12 glow-teal"
+            className="bg-card border border-border rounded-2xl p-5 glow-teal sm:p-8 md:p-12"
           >
             <div className="flex items-center gap-4 mb-6">
               <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center">
@@ -130,9 +129,9 @@ export function SciencePage() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-card border border-border rounded-2xl p-8 text-center"
+                className="bg-card border border-border rounded-2xl px-5 py-8 text-center sm:px-8 sm:py-10"
               >
-                <div className="text-5xl gradient-text mb-2">{stat.value}</div>
+                <div className="text-4xl gradient-text mb-2 sm:text-5xl">{stat.value}</div>
                 <p className="text-muted-foreground">{stat.label}</p>
               </motion.div>
             ))}

@@ -14,9 +14,9 @@ export function Footer({ onNavigate }: FooterProps) {
   ];
 
   const socialLinks = [
-    { icon: Linkedin, href: '#', label: 'LinkedIn' },
-    { icon: Twitter, href: '#', label: 'Twitter' },
-    { icon: Youtube, href: '#', label: 'YouTube' },
+    { icon: Linkedin, label: 'LinkedIn' },
+    { icon: Twitter, label: 'Twitter' },
+    { icon: Youtube, label: 'YouTube' },
   ];
 
   return (
@@ -30,7 +30,7 @@ export function Footer({ onNavigate }: FooterProps) {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+                <Sparkles aria-hidden="true" className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-xl text-foreground">FocusSpark</span>
             </div>
@@ -44,6 +44,7 @@ export function Footer({ onNavigate }: FooterProps) {
               {quickLinks.map((link) => (
                 <button
                   key={link.path}
+                  type="button"
                   onClick={() => onNavigate(link.path)}
                   className="text-muted-foreground hover:text-foreground transition-colors text-left"
                 >
@@ -57,19 +58,19 @@ export function Footer({ onNavigate }: FooterProps) {
           <div>
             <h4 className="mb-4 text-foreground">Connect With Us</h4>
             <div className="flex gap-4">
-              {socialLinks.map((social) => {
+                {socialLinks.map((social) => {
                 const Icon = social.icon;
                 return (
-                  <motion.a
+                  <motion.button
                     key={social.label}
-                    href={social.href}
+                    type="button"
                     aria-label={social.label}
                     className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:border-blue-500 transition-all"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <Icon className="w-5 h-5" />
-                  </motion.a>
+                    <Icon aria-hidden="true" className="w-5 h-5" />
+                  </motion.button>
                 );
               })}
             </div>
@@ -78,7 +79,7 @@ export function Footer({ onNavigate }: FooterProps) {
 
         {/* Bottom */}
         <div className="border-t border-border pt-6 text-center text-muted-foreground text-sm">
-          © 2026 FocusSpark. All Rights Reserved.
+          &copy; 2026 FocusSpark. All Rights Reserved.
         </div>
       </div>
     </footer>

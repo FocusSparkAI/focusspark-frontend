@@ -67,7 +67,7 @@ export function AboutPage() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             whileHover={{ y: -10 }}
-            className="bg-card border border-border rounded-2xl p-8 md:p-12 glow-blue-purple"
+            className="bg-card border border-border rounded-2xl p-5 glow-blue-purple sm:p-8 md:p-12"
           >
             <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-6">
               <Target className="w-8 h-8 text-white" />
@@ -88,7 +88,7 @@ export function AboutPage() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             whileHover={{ y: -10 }}
-            className="bg-card border border-border rounded-2xl p-8 md:p-12 glow-teal"
+            className="bg-card border border-border rounded-2xl p-5 glow-teal sm:p-8 md:p-12"
           >
             <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center mb-6">
               <Eye className="w-8 h-8 text-white" />

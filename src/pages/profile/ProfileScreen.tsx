@@ -37,6 +37,7 @@ import axios from 'axios';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { DeleteAccountDialog } from '../../components/account/DeleteAccountDialog';
 import { getErrorMessage } from '../../utils/apiTypes';
+import { setUserTimeZone } from '../../utils/timezone';
 
 interface ProfileScreenProps {
   onNavigate: (page: string) => void;
@@ -60,6 +61,8 @@ const resolveAssetUrl = (url: string) => {
   if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
   return buildBackendUrl(url);
 };
+
+const formatExportTimestamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 
 export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenProps) {
   const [isEditingName, setIsEditingName] = useState(false);
@@ -120,6 +123,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
           setBio(data.bio ?? '');
           setTempBio(data.bio ?? '');
           setAvatarUrl(resolveAssetUrl(data.avatar_url ?? data.avatarUrl ?? ''));
+          setUserTimeZone(data.timezone);
         }
       } catch (err: unknown) {
         toast.error(getErrorMessage(err, 'Failed to load profile'));
@@ -208,9 +212,11 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'focusspark-account-data.json';
+      link.download = `focusspark-account-data-${formatExportTimestamp()}.json`;
+      document.body.appendChild(link);
       link.click();
-      URL.revokeObjectURL(url);
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
       toast.success('Account data export ready.');
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to export account data'));
@@ -320,9 +326,12 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="w-full px-8 py-4 lg:px-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
+          <div
+            className="flex min-h-16 w-full flex-col items-start gap-3 sm:block"
+            style={{ position: 'relative', paddingRight: 160 }}
+          >
+            <div className="flex min-w-0 items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -331,9 +340,9 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
               >
                 <Home className="w-5 h-5" />
               </Button>
-              <div>
+              <div className="min-w-0">
                 <h1 className="gradient-text">My Profile</h1>
-                <p className="text-sm text-secondary">
+                <p className="max-w-xl text-sm text-secondary">
                   Keep your account details and study preferences up to date.
                 </p>
               </div>
@@ -342,6 +351,12 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
             <Button
               variant="outline"
               onClick={() => onNavigate('settings')}
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
+              }}
             >
               Settings
             </Button>
@@ -544,7 +559,7 @@ export function ProfileScreen({ onNavigate, onReplayOnboarding }: ProfileScreenP
                   <Download className="w-5 h-5 text-green-400" />
                   <div className="text-left">
                     <p>Export Account Data</p>
-                    <p className="text-xs text-secondary">Download your data as CSV or JSON</p>
+                    <p className="text-xs text-secondary">Download your full account data as JSON</p>
                   </div>
                 </div>
                 <ArrowRight className="h-4 w-4 text-secondary" />

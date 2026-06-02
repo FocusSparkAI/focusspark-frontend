@@ -44,6 +44,7 @@ import {
 import { toast } from 'sonner';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord, getBoolean, getErrorMessage, getNumber, getString } from '../../utils/apiTypes';
+import { formatUserDate } from '../../utils/timezone';
 
 interface Achievement {
   id: string;
@@ -120,6 +121,11 @@ const sortAchievementsByUnlockOrder = (items: Achievement[]) =>
     return a.title.localeCompare(b.title);
   });
 
+const progressRadius = 40;
+const progressCircumference = 2 * Math.PI * progressRadius;
+
+const getSvgIdSegment = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '-');
+
 export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -183,7 +189,7 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
   const unlockedIconClass =
     'achievement-icon-unlocked';
   const lockedIconClass =
-    'bg-muted text-muted-foreground border border-border';
+    'achievement-icon-locked';
 
   const handleBadgeClick = (achievement: Achievement) => {
     setSelectedAchievement(achievement);
@@ -228,8 +234,8 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
-        <div className="w-full px-8 py-4 lg:px-10">
-          <div className="flex items-center justify-between">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
+          <div className="flex w-full flex-col items-start gap-3 sm:flex-row sm:items-center">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -256,7 +262,7 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
             </div>
 
             {/* Overall Progress */}
-            <div className="hidden md:flex items-center gap-4">
+            <div className="ml-auto hidden items-center gap-4 md:flex">
               <div className="text-right">
                 <p className="text-sm text-secondary">Overall Progress</p>
                 <p className="gradient-text">{completionPercentage}%</p>
@@ -273,13 +279,13 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
         {/* Achievement Grid */}
         {isLoading ? (
           <Card className="border-border bg-card shadow-sm">
-            <CardContent className="flex min-h-[220px] items-center justify-center p-8 text-center text-secondary">
+            <CardContent className="flex min-h-[220px] items-center justify-center p-5 text-center text-secondary sm:p-8">
               Loading achievements...
             </CardContent>
           </Card>
         ) : achievements.length === 0 ? (
           <Card className="border-border bg-card shadow-sm">
-            <CardContent className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-8 text-center">
+            <CardContent className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-5 text-center sm:p-8">
               <Award className="h-10 w-10 text-blue-500" />
               <h2 className="text-xl">No achievements available</h2>
               <p className="max-w-md text-sm text-secondary">
@@ -297,6 +303,12 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
             {achievements.map((achievement, index) => {
             const Icon = achievement.icon;
             const isLocked = !achievement.unlocked;
+            const progressRatio = Math.min(
+              Math.max(achievement.progress / achievement.maxProgress, 0),
+              1,
+            );
+            const progressDashOffset = progressCircumference * (1 - progressRatio);
+            const progressGradientId = `achievement-progress-${getSvgIdSegment(achievement.id)}`;
 
             return (
               <motion.div
@@ -310,9 +322,18 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
               >
                 <Card
                   className={`h-full min-h-[360px] border cursor-pointer relative overflow-hidden group shadow-sm hover:shadow-xl transition-all ${
-                    isLocked ? 'bg-card border-border' : unlockedCardClass
+                    isLocked ? 'achievement-card-locked' : unlockedCardClass
                   }`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View ${achievement.title} achievement details`}
                   onClick={() => handleBadgeClick(achievement)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleBadgeClick(achievement);
+                    }
+                  }}
                 >
                   <CardContent className="p-6 text-center relative z-10 h-full flex flex-col items-center">
                     {/* Icon */}
@@ -334,16 +355,16 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
 
                     {/* Title & Description */}
                     <div className="mt-4 min-h-[88px] flex flex-col justify-start">
-                      <h3 className={isLocked ? 'text-muted-foreground' : ''}>{achievement.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1 max-w-[220px] mx-auto">
+                      <h3 className={isLocked ? 'achievement-locked-title' : ''}>{achievement.title}</h3>
+                      <p className={`text-sm mt-1 max-w-[220px] mx-auto ${isLocked ? 'achievement-locked-description' : 'text-muted-foreground'}`}>
                         {achievement.description}
                       </p>
                     </div>
 
                     {isLocked && (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs mb-3">
+                      <div className="achievement-lock-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs mb-3">
                         <div className="w-3 h-4 border border-current rounded-sm relative">
-                          <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 border border-current rounded-full bg-muted" />
+                          <div className="achievement-lock-shackle absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 border border-current rounded-full" />
                         </div>
                         Locked
                       </div>
@@ -353,38 +374,37 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                     {isLocked && (
                       <div className="space-y-2 mb-4">
                         <div className="relative w-24 h-24 mx-auto">
-                          <svg className="w-full h-full -rotate-90">
+                          <svg
+                            className="w-full h-full -rotate-90 overflow-visible"
+                            viewBox="0 0 96 96"
+                            aria-hidden="true"
+                          >
                             <circle
                               cx="48"
                               cy="48"
-                              r="40"
+                              r={progressRadius}
                               stroke="currentColor"
                               strokeWidth="6"
                               fill="none"
-                              className="text-muted"
+                              className="achievement-progress-track"
                             />
                             <motion.circle
                               cx="48"
                               cy="48"
-                              r="40"
-                              stroke="url(#gradient-progress)"
+                              r={progressRadius}
+                              stroke={`url(#${progressGradientId})`}
                               strokeWidth="6"
                               fill="none"
-                              strokeDasharray={`${2 * Math.PI * 40}`}
-                              strokeDashoffset={`${
-                                2 * Math.PI * 40 * (1 - achievement.progress / achievement.maxProgress)
-                              }`}
+                              strokeDasharray={progressCircumference}
+                              strokeDashoffset={progressDashOffset}
                               strokeLinecap="round"
-                              initial={{ strokeDashoffset: 2 * Math.PI * 40 }}
-                              animate={{
-                                strokeDashoffset:
-                                  2 * Math.PI * 40 * (1 - achievement.progress / achievement.maxProgress),
-                              }}
+                              initial={{ strokeDashoffset: progressCircumference }}
+                              animate={{ strokeDashoffset: progressDashOffset }}
                               transition={{ duration: 1 }}
                             />
                             <defs>
                               <linearGradient
-                                id="gradient-progress"
+                                id={progressGradientId}
                                 x1="0%"
                                 y1="0%"
                                 x2="100%"
@@ -397,11 +417,11 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <p className="gradient-text">
-                              {Math.round((achievement.progress / achievement.maxProgress) * 100)}%
+                              {Math.round(progressRatio * 100)}%
                             </p>
                           </div>
                         </div>
-                        <p className="text-xs text-secondary">
+                        <p className="achievement-progress-count text-xs">
                           {achievement.progress} / {achievement.maxProgress}
                         </p>
                       </div>
@@ -411,12 +431,12 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                     {!isLocked && achievement.unlockedDate && (
                       <div className="flex items-center justify-center gap-2 text-xs text-green-400 mt-auto mb-4">
                         <CheckCircle className="w-4 h-4" />
-                        <span>Unlocked {achievement.unlockedDate.toLocaleDateString()}</span>
+                        <span>Unlocked {formatUserDate(achievement.unlockedDate)}</span>
                       </div>
                     )}
 
                     {/* Criteria */}
-                    <p className="text-xs text-muted-foreground italic mt-auto max-w-[220px]">
+                    <p className={`text-xs italic mt-auto max-w-[220px] ${isLocked ? 'achievement-locked-criteria' : 'text-muted-foreground'}`}>
                       {achievement.criteria}
                     </p>
                   </CardContent>
@@ -504,7 +524,7 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
                     {selectedAchievement.unlocked && selectedAchievement.unlockedDate && (
                       <div className="flex justify-between">
                         <span className="text-secondary">Earned:</span>
-                        <span>{selectedAchievement.unlockedDate.toLocaleDateString()}</span>
+                        <span>{formatUserDate(selectedAchievement.unlockedDate)}</span>
                       </div>
                     )}
 

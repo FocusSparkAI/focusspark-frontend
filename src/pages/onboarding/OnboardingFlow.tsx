@@ -234,7 +234,7 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
                   This is the only choice in onboarding. Everything else can be adjusted later in Settings.
                 </p>
 
-                <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2">
                   {themeOptions.map((theme) => {
                     const isSelected = selectedTheme === theme.value;
 
@@ -282,7 +282,7 @@ export function OnboardingFlow({ onComplete, onThemeChange }: OnboardingFlowProp
                   </div>
                 </motion.div>
 
-                <h1 className="text-5xl mb-4">All Set!</h1>
+                <h1 className="text-4xl mb-4 sm:text-5xl">All Set!</h1>
                 <p className="text-xl text-secondary mb-8">
                   You can explore reports, analytics, profile controls, and settings from the dashboard.
                 </p>

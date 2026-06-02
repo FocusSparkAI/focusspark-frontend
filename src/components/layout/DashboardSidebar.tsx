@@ -9,8 +9,6 @@ import {
   User,
   LogOut,
   Play,
-  ChevronLeft,
-  ChevronRight,
   Target,
   TrendingUp,
 } from 'lucide-react';
@@ -19,7 +17,6 @@ import { cn } from '../../utils/classNames';
 
 interface DashboardSidebarProps {
   collapsed: boolean;
-  onToggleCollapse: () => void;
   onNavigate: (page: string) => void;
   currentPage?: string;
 }
@@ -44,7 +41,6 @@ const menuItems: DashboardMenuItem[] = [
 
 export function DashboardSidebar({
   collapsed,
-  onToggleCollapse,
   onNavigate,
   currentPage = 'dashboard',
 }: DashboardSidebarProps) {
@@ -78,29 +74,6 @@ export function DashboardSidebar({
             </div>
           </motion.div>
         )}
-        <button
-          onClick={onToggleCollapse}
-          className={cn(
-            'flex aspect-square h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-background p-0 text-secondary shadow-sm transition-colors hover:bg-accent hover:text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50',
-            collapsed && 'static',
-          )}
-          style={{
-            minWidth: 36,
-            minHeight: 36,
-            maxWidth: 36,
-            maxHeight: 36,
-            borderRadius: 9999,
-            padding: 0,
-          }}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
-        </button>
       </div>
 
       {/* Navigation */}

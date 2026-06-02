@@ -7,6 +7,7 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord } from '../../utils/apiTypes';
+import { formatUserDateKey } from '../../utils/timezone';
 
 interface GoalsHistoryPageProps {
   onNavigate: (page: string) => void;
@@ -26,22 +27,15 @@ type StudyGoal = ApiRecord & {
   updated_at?: string;
 };
 
-const formatDateKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const todayKey = () => formatDateKey(new Date());
+const todayKey = () => formatUserDateKey(new Date());
 
 const goalDateKey = (goal: StudyGoal) => {
   if (typeof goal?.goal_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal.goal_date)) return goal.goal_date;
   if (typeof goal?.due_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(goal.due_date)) return goal.due_date;
 
   const raw = goal?.created_at ?? goal?.updated_at;
-  const date = raw ? new Date(raw) : new Date();
-  return Number.isNaN(date.getTime()) ? todayKey() : formatDateKey(date);
+  const dateKey = raw ? formatUserDateKey(String(raw)) : todayKey();
+  return dateKey || todayKey();
 };
 
 const goalProgress = (goal: StudyGoal) => {
@@ -95,43 +89,71 @@ export function GoalsHistoryPage({ onNavigate }: GoalsHistoryPageProps) {
       }));
   }, [goals]);
 
-  const renderGoal = (goal: StudyGoal) => (
-    <Card key={goal.id} className="border-border bg-card shadow-sm">
+  const renderGoal = (goal: StudyGoal) => {
+    const completed = Boolean(goal.completed);
+    const currentMinutes = Number(goal.current_minutes ?? 0);
+    const targetMinutes = goalTargetMinutes(goal);
+
+    return (
+    <Card
+      key={goal.id}
+      className={
+        completed
+          ? 'overflow-hidden border-border bg-card shadow-sm ring-1 ring-emerald-500/10'
+          : 'overflow-hidden border-border bg-card shadow-sm ring-1 ring-amber-500/10'
+      }
+    >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/60">
-            {goal.completed ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Clock className="h-5 w-5 text-amber-500" />}
+          <div
+            className={
+              completed
+                ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10'
+                : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10'
+            }
+          >
+            {completed ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : <Clock className="h-5 w-5 text-amber-400" />}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="min-w-0 truncate font-medium">{goal.title}</p>
               <Badge
                 className={
-                  goal.completed
-                    ? 'border-emerald-500/35 bg-transparent text-emerald-500 dark:text-emerald-300'
-                    : 'border-border bg-transparent text-secondary'
+                  completed
+                    ? 'border-emerald-500/30 bg-transparent text-emerald-600 dark:text-emerald-300'
+                    : 'border-amber-500/30 bg-transparent text-amber-600 dark:text-amber-300'
                 }
                 variant="outline"
               >
-                {goal.completed ? 'Completed' : 'Incomplete'}
+                {completed ? 'Completed' : 'Incomplete'}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-secondary">
-              {goal.current_minutes ?? 0}/{goalTargetMinutes(goal)} min
+              {currentMinutes}/{targetMinutes} min
             </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full bg-primary" style={{ width: `${goalProgress(goal)}%` }} />
+            <div
+              className={
+                completed
+                  ? 'mt-3 h-2.5 overflow-hidden rounded-full border border-blue-500/15 bg-blue-500/10'
+                  : 'mt-3 h-2.5 overflow-hidden rounded-full border border-amber-500/20 bg-amber-500/10 dark:bg-amber-500/15'
+              }
+            >
+              <div
+                className={completed ? 'h-full rounded-full bg-blue-500' : 'h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400'}
+                style={{ width: `${completed ? 100 : goalProgress(goal)}%` }}
+              />
             </div>
           </div>
         </div>
       </CardContent>
     </Card>
   );
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/90 backdrop-blur-xl">
-        <div className="flex w-full items-center justify-between gap-3 px-8 py-4 lg:px-10">
+        <div className="flex w-full flex-col items-start justify-between gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-6 lg:px-10">
           <div className="flex min-w-0 items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => onNavigate('dashboard')}>
               <Home className="h-5 w-5" />
@@ -156,11 +178,11 @@ export function GoalsHistoryPage({ onNavigate }: GoalsHistoryPageProps) {
               </div>
             )}
 
-            <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
+            <section className="rounded-lg border border-border bg-card p-4 shadow-sm ring-1 ring-blue-500/10 sm:p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-sm text-secondary">
-                    <CalendarDays className="h-4 w-4 text-blue-500" />
+                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-sm text-blue-600 dark:text-blue-300">
+                    <CalendarDays className="h-4 w-4" />
                     Previous study goals
                   </div>
                   <p className="max-w-2xl text-sm text-secondary">
@@ -185,10 +207,10 @@ export function GoalsHistoryPage({ onNavigate }: GoalsHistoryPageProps) {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <h2 className="flex items-center gap-2 text-xl font-semibold tracking-normal">
-                        <Target className="h-5 w-5 text-blue-400" />
+                        <Target className="h-5 w-5 text-teal-400" />
                         {group.date}
                       </h2>
-                      <p className="rounded-full border border-border bg-muted/30 px-3 py-1 text-sm text-secondary">
+                      <p className="rounded-full border border-border bg-card px-3 py-1 text-sm text-secondary ring-1 ring-teal-500/10">
                         {group.completed} completed, {group.incomplete} incomplete
                       </p>
                     </div>

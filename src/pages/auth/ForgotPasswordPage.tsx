@@ -82,7 +82,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
           transition={{ duration: 0.6 }}
           className="w-full max-w-md relative z-10"
         >
-          <div className="glass-card rounded-2xl p-8 md:p-10 shadow-2xl text-center">
+          <div className="glass-card rounded-2xl p-5 text-center shadow-2xl sm:p-8 md:p-10">
             {/* Success Icon */}
             <motion.div
               initial={{ scale: 0 }}
@@ -152,7 +152,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
         className="w-full max-w-md relative z-10"
       >
         {/* Glass Card */}
-        <div className="glass-card rounded-2xl p-8 md:p-10 shadow-2xl">
+        <div className="glass-card rounded-2xl p-5 shadow-2xl sm:p-8 md:p-10">
           {/* Header */}
           <div className="text-center mb-8">
             <motion.div
