@@ -10,6 +10,11 @@ export const BACKEND_ROUTES = {
   auth: {
     login: '/auth/login',
     signup: '/auth/signup',
+    verifyEmail: '/auth/verify-email',
+    resendVerificationOtp: '/auth/resend-verification-otp',
+    forgotPassword: '/auth/forgot-password',
+    verifyPasswordResetOtp: '/auth/verify-password-reset-otp',
+    resetPassword: '/auth/reset-password',
     changePassword: '/auth/password',
     logout: '/auth/logout',
   },

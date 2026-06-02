@@ -1,31 +1,56 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, Mail, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
+import axios from 'axios';
+import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { toast } from 'sonner';
+import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
+import { getErrorMessage } from '../../utils/apiTypes';
 import { makeFloatingParticles } from '../../utils/stableParticles';
 
 interface ForgotPasswordPageProps {
   onNavigate: (page: string) => void;
 }
 
-const successParticles = makeFloatingParticles(15, 61);
+type ResetStep = 'email' | 'otp' | 'password';
+
 const backgroundParticles = makeFloatingParticles(15, 73);
+const passwordRequirementsText = 'Use at least 8 characters, including a letter and a number';
+const passwordMeetsRequirements = (password: string) =>
+  password.length >= 8 && /[A-Za-z]/.test(password) && /\d/.test(password);
 
 export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
+  const [step, setStep] = useState<ResetStep>('email');
   const [email, setEmail] = useState('');
+  const [otpArr, setOtpArr] = useState<string[]>(() => Array(6).fill(''));
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [error, setError] = useState('');
+  const inputsRef = useRef<HTMLInputElement[]>([]);
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const otp = otpArr.join('');
+  const isOtpValid = otpArr.every((d) => d.length === 1 && /\d/.test(d));
+  const isPasswordInvalid = newPassword.length > 0 && !passwordMeetsRequirements(newPassword);
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timerId = window.setTimeout(() => setResendSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearTimeout(timerId);
+  }, [resendSeconds]);
 
   const validateEmail = () => {
-    if (!email) {
+    if (!normalizedEmail) {
       setError('Email is required');
       return false;
     }
-    if (!/\S+@\S+\.\S+/.test(email)) {
+    if (!/\S+@\S+\.\S+/.test(normalizedEmail)) {
       setError('Invalid email format');
       return false;
     }
@@ -33,114 +58,175 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const setDigit = (idx: number, val: string) => {
+    setOtpArr((prev) => {
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  };
 
-    if (!validateEmail()) {
+  const handleChangeDigit = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 1);
+    setDigit(idx, value);
+    if (value) inputsRef.current[idx + 1]?.focus();
+    if (error) setError('');
+  };
+
+  const handleOtpKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      void handleVerifyOtp();
+      return;
+    }
+    if (e.key === 'Backspace') {
+      if (e.currentTarget.value === '') {
+        if (idx > 0) {
+          setDigit(idx - 1, '');
+          inputsRef.current[idx - 1]?.focus();
+        }
+      } else {
+        setDigit(idx, '');
+      }
+    } else if (e.key === 'ArrowLeft') {
+      inputsRef.current[idx - 1]?.focus();
+    } else if (e.key === 'ArrowRight') {
+      inputsRef.current[idx + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (idx: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const paste = e.clipboardData.getData('text').replace(/\D/g, '');
+    if (!paste) return;
+    const chars = paste.split('').slice(0, 6 - idx);
+    setOtpArr((prev) => {
+      const next = [...prev];
+      for (let i = 0; i < chars.length; i++) {
+        next[idx + i] = chars[i];
+      }
+      return next;
+    });
+    inputsRef.current[Math.min(5, idx + chars.length - 1)]?.focus();
+  };
+
+  const requestResetOtp = async () => {
+    if (!validateEmail()) return;
+
+    setIsLoading(true);
+    try {
+      await axios.post(buildBackendUrl(BACKEND_ROUTES.auth.forgotPassword), {
+        email: normalizedEmail,
+      });
+      setEmail(normalizedEmail);
+      setOtpArr(Array(6).fill(''));
+      setResendSeconds(60);
+      setStep('otp');
+      window.setTimeout(() => inputsRef.current[0]?.focus(), 0);
+      toast.success('Password reset code sent');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Could not send reset code');
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!isOtpValid) {
+      setError('Please enter the 6-digit reset code');
+      const firstInvalid = otpArr.findIndex((d) => d === '' || !/\d/.test(d));
+      inputsRef.current[firstInvalid >= 0 ? firstInvalid : 0]?.focus();
       return;
     }
 
     setIsLoading(true);
-
-    // Simulate sending reset link
-    setTimeout(() => {
+    setError('');
+    try {
+      await axios.post(buildBackendUrl(BACKEND_ROUTES.auth.verifyPasswordResetOtp), {
+        email: normalizedEmail,
+        otp,
+      });
+      setStep('password');
+      toast.success('Code verified');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Invalid reset code');
+      setError(message);
+      toast.error(message);
+    } finally {
       setIsLoading(false);
-      setIsSuccess(true);
-      toast.success('Reset link sent! Check your email.');
-    }, 1500);
+    }
   };
 
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6 py-20 gradient-wave relative overflow-hidden">
-        {/* Background Particles */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {successParticles.map((particle) => (
-            <motion.div
-              key={particle.id}
-              className="absolute w-1 h-1 bg-teal-500/20 rounded-full"
-              style={{
-                left: particle.left,
-                top: particle.top,
-              }}
-              animate={{
-                scale: [1, 1.5, 1],
-                opacity: [0.3, 0.6, 0.3],
-              }}
-              transition={{
-                duration: 2 + particle.duration / 3,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-          ))}
-        </div>
+  const handleResetPassword = async () => {
+    if (!passwordMeetsRequirements(newPassword)) {
+      setError(passwordRequirementsText);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-md relative z-10"
-        >
-          <div className="glass-card rounded-2xl p-5 text-center shadow-2xl sm:p-8 md:p-10">
-            {/* Success Icon */}
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', duration: 0.8, delay: 0.2 }}
-              className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 mb-6 glow-teal"
-            >
-              <CheckCircle2 className="w-10 h-10 text-white" />
-            </motion.div>
+    setIsLoading(true);
+    setError('');
+    try {
+      await axios.post(buildBackendUrl(BACKEND_ROUTES.auth.resetPassword), {
+        email: normalizedEmail,
+        otp,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      });
+      toast.success('Password changed successfully. Please sign in.');
+      onNavigate('signin');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Could not change password');
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-            <h2 className="text-3xl mb-4">Check Your Email ✉️</h2>
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (step === 'email') void requestResetOtp();
+    if (step === 'otp') void handleVerifyOtp();
+    if (step === 'password') void handleResetPassword();
+  };
 
-            <p className="text-lg text-muted-foreground mb-8">
-              A reset link has been sent to{' '}
-              <span className="text-foreground">{email}</span>
-              <br />
-              Check your inbox to continue.
-            </p>
+  const goBack = () => {
+    if (step === 'password') {
+      setError('');
+      setStep('otp');
+      return;
+    }
+    if (step === 'otp') {
+      setError('');
+      setStep('email');
+      return;
+    }
+    onNavigate('signin');
+  };
 
-            <Button
-              onClick={() => onNavigate('signin')}
-              variant="outline"
-              className="hover:bg-blue-500/10 hover:border-blue-500 transition-all"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Sign In
-            </Button>
-          </div>
-
-          <p className="text-center text-muted-foreground text-xs mt-6 opacity-60">
-            © 2025 FocusSpark. All rights reserved.
-          </p>
-        </motion.div>
-      </div>
-    );
-  }
+  const title = step === 'email' ? 'Reset Your Password' : step === 'otp' ? 'Enter Reset Code' : 'Create New Password';
+  const description =
+    step === 'email'
+      ? "Don't worry, it happens. Enter your account email."
+      : step === 'otp'
+        ? `Enter the 6-digit code sent to ${normalizedEmail}.`
+        : 'Choose a new password for your account.';
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-20 gradient-wave relative overflow-hidden">
-      {/* Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {backgroundParticles.map((particle) => (
           <motion.div
             key={particle.id}
             className="absolute w-1 h-1 bg-blue-500/20 rounded-full"
-            style={{
-              left: particle.left,
-              top: particle.top,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0.2, 0.5, 0.2],
-            }}
-            transition={{
-              duration: 3 + particle.duration / 3,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
+            style={{ left: particle.left, top: particle.top }}
+            animate={{ y: [0, -30, 0], opacity: [0.2, 0.5, 0.2] }}
+            transition={{ duration: 3 + particle.duration / 3, repeat: Infinity, ease: 'easeInOut' }}
           />
         ))}
       </div>
@@ -151,9 +237,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
         transition={{ duration: 0.6 }}
         className="w-full max-w-md relative z-10"
       >
-        {/* Glass Card */}
         <div className="glass-card rounded-2xl p-5 shadow-2xl sm:p-8 md:p-10">
-          {/* Header */}
           <div className="text-center mb-8">
             <motion.div
               initial={{ scale: 0 }}
@@ -162,97 +246,188 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
               className="inline-flex items-center gap-2 mb-4"
             >
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center glow-blue-purple">
-                <Sparkles className="w-7 h-7 text-white" />
+                {step === 'otp' ? <ShieldCheck className="w-7 h-7 text-white" /> : <Sparkles className="w-7 h-7 text-white" />}
               </div>
               <span className="text-2xl">FocusSpark</span>
             </motion.div>
 
-            <h2 className="text-2xl mb-2">Reset Your Password</h2>
-
+            <h2 className="text-2xl mb-2">{title}</h2>
             <motion.p
+              key={step}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.1 }}
               className="text-muted-foreground"
             >
-              Don't worry — it happens. Let's get you back in.
+              {description}
             </motion.p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Field */}
-            <div>
-              <Label htmlFor="email">Email Address</Label>
-              <div className="relative mt-2">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setError('');
-                  }}
-                  placeholder="your.email@example.com"
-                  className={`pl-10 bg-background/50 border-border focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all ${
-                    error ? 'border-red-500 shake' : ''
-                  }`}
-                />
+            {step === 'email' && (
+              <div>
+                <Label htmlFor="email">Email Address</Label>
+                <div className="relative mt-2">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError('');
+                    }}
+                    placeholder="your.email@example.com"
+                    className={`pl-10 bg-background/50 border-border focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all ${
+                      error ? 'border-red-500 shake' : ''
+                    }`}
+                  />
+                </div>
               </div>
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-red-500 text-sm mt-1"
-                >
-                  {error}
-                </motion.p>
-              )}
-            </div>
+            )}
 
-            {/* Submit Button */}
+            {step === 'otp' && (
+              <div>
+                <Label>Reset Code</Label>
+                <div className="mt-3 flex items-center justify-center gap-2 sm:gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => {
+                        if (el) inputsRef.current[i] = el;
+                      }}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={1}
+                      value={otpArr[i]}
+                      onChange={(e) => handleChangeDigit(i, e)}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                      onPaste={(e) => handleOtpPaste(i, e)}
+                      aria-label={`Digit ${i + 1}`}
+                      className="h-11 w-10 rounded-md border border-input bg-input-background text-center text-lg font-medium focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] sm:h-12 sm:w-12"
+                    />
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mx-auto mt-3 flex"
+                  onClick={requestResetOtp}
+                  disabled={isLoading || resendSeconds > 0}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend code'}
+                </Button>
+              </div>
+            )}
+
+            {step === 'password' && (
+              <>
+                <div>
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <div className="relative mt-2">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="newPassword"
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => {
+                        setNewPassword(e.target.value);
+                        setError('');
+                      }}
+                      placeholder="Create a strong password"
+                      className={`pl-10 pr-10 bg-background/50 border-border focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all ${
+                        error || isPasswordInvalid ? 'border-red-500 shake' : ''
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  <p className={`mt-1 text-xs ${isPasswordInvalid ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {passwordRequirementsText}
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative mt-2">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        setError('');
+                      }}
+                      placeholder="Confirm your password"
+                      className={`pl-10 pr-10 bg-background/50 border-border focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all ${
+                        error ? 'border-red-500 shake' : ''
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {error && (
+              <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-red-500 text-sm"
+              >
+                {error}
+              </motion.p>
+            )}
+
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || (step === 'otp' && !isOtpValid)}
                 className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all py-6 glow-blue-purple relative overflow-hidden"
               >
-                {isLoading && (
-                  <motion.div
-                    className="absolute inset-0 bg-white/10"
-                    initial={{ x: '-100%' }}
-                    animate={{ x: '100%' }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                  />
-                )}
                 {isLoading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Sending reset link...
+                    {step === 'email' ? 'Sending code...' : step === 'otp' ? 'Verifying...' : 'Changing password...'}
                   </>
+                ) : step === 'email' ? (
+                  'Send Code'
+                ) : step === 'otp' ? (
+                  'Verify Code'
                 ) : (
-                  'Send Reset Link'
+                  'Update Password'
                 )}
               </Button>
             </motion.div>
           </form>
 
-          {/* Back to Sign In Link */}
           <div className="mt-6 text-center">
             <button
-              onClick={() => onNavigate('signin')}
+              onClick={goBack}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Sign In
+              {step === 'email' ? 'Back to Sign In' : 'Back'}
             </button>
           </div>
         </div>
 
-        {/* Footer */}
         <p className="text-center text-muted-foreground text-xs mt-6 opacity-60">
-          © 2025 FocusSpark. All rights reserved.
+          © 2026 FocusSpark. All rights reserved.
         </p>
       </motion.div>
     </div>
