@@ -68,6 +68,7 @@ const aiDefaultModelByProvider: Record<AIProvider, string> = {
 
 export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScreenProps) {
   const { isDetectionEnabled, setIsDetectionEnabled } = useFocus();
+  const [draftDetectionEnabled, setDraftDetectionEnabled] = useState(isDetectionEnabled);
   const [activeCategory, setActiveCategory] = useState('account');
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
@@ -174,6 +175,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
 
         if (typeof data?.focus_alerts_enabled === 'boolean') {
           setIsDetectionEnabled(data.focus_alerts_enabled);
+          setDraftDetectionEnabled(data.focus_alerts_enabled);
         }
         if (typeof data?.notifications_enabled === 'boolean') {
           setDesktopNotifications(data.notifications_enabled);
@@ -315,10 +317,11 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       await axios.put(
         buildBackendUrl(BACKEND_ROUTES.study.settings.update),
         {
-          focus_alerts_enabled: isDetectionEnabled,
+          focus_alerts_enabled: draftDetectionEnabled,
         },
         { headers },
       );
+      setIsDetectionEnabled(draftDetectionEnabled);
       toast.success('Focus detection settings saved.');
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to save focus settings'));
@@ -381,8 +384,11 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
         <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
-          <div className="flex w-full flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
+          <div
+            className="flex min-h-16 w-full flex-col items-start gap-3 sm:block"
+            style={{ position: 'relative', paddingRight: 160 }}
+          >
+            <div className="flex min-w-0 items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -391,13 +397,22 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
               >
                 <Home className="w-5 h-5" />
               </Button>
-              <div>
+              <div className="min-w-0">
                 <h1 className="gradient-text">Settings</h1>
-                <p className="text-sm text-secondary">Customize your FocusSpark experience</p>
+                <p className="max-w-xl text-sm text-secondary">Customize your FocusSpark experience</p>
               </div>
             </div>
 
-            <Button className="self-end sm:ml-auto" variant="outline" onClick={() => onNavigate('profile')}>
+            <Button
+              variant="outline"
+              onClick={() => onNavigate('profile')}
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
+              }}
+            >
               <User className="w-4 h-4 mr-2" />
               Profile
             </Button>
@@ -657,10 +672,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                             Use webcam to detect attention and focus in real-time
                           </p>
                         </div>
-                        <Switch className="shrink-0" checked={isDetectionEnabled} onCheckedChange={(checked) => {
-                          setIsDetectionEnabled(checked);
-                          toast.success(checked ? 'Focus Detection enabled' : 'Focus Detection disabled');
-                        }} />
+                        <Switch className="shrink-0" checked={draftDetectionEnabled} onCheckedChange={setDraftDetectionEnabled} />
                       </div>
 
                       <Separator />

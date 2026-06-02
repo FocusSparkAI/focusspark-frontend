@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { motion } from 'motion/react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -25,7 +27,7 @@ import {
 import { toast } from 'sonner';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord } from '../../utils/apiTypes';
-import { formatUserDateKey, formatUserMonth } from '../../utils/timezone';
+import { formatUserDateKey } from '../../utils/timezone';
 
 interface ReportsAnalyticsProps {
   onNavigate: (page: string) => void;
@@ -75,6 +77,22 @@ const HEATMAP_LEVELS = [
   { label: '60-89 min', min: 60, max: 89, color: '#0284c7' },
   { label: '90+ min', min: 90, max: Infinity, color: '#1d4ed8' },
 ];
+const HEATMAP_MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const padCalendarPart = (value: number) => String(value).padStart(2, '0');
+
+const toCalendarDateKey = (date: Date) =>
+  `${date.getFullYear()}-${padCalendarPart(date.getMonth() + 1)}-${padCalendarPart(date.getDate())}`;
+
+const getDateKeyParts = (dateKey: string) => {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return { year, month, day };
+};
+
+const getCalendarMonthLabel = (dateKey: string) => {
+  const { month } = getDateKeyParts(dateKey);
+  return HEATMAP_MONTH_LABELS[month - 1] ?? '';
+};
 
 const toDateKey = (value: unknown) => {
   if (!value) return null;
@@ -94,81 +112,31 @@ const toCsvCell = (value: unknown) => {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
+const formatExportTimestamp = () => new Date().toISOString().replace(/[:.]/g, '-');
+
 const downloadBlob = (filename: string, blob: Blob) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
 const downloadCsv = (filename: string, rows: unknown[][]) => {
-  const csv = rows.map((row) => row.map(toCsvCell).join(',')).join('\n');
+  const csv = `\uFEFF${rows.map((row) => row.map(toCsvCell).join(',')).join('\r\n')}`;
   downloadBlob(filename, new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
 };
 
-const escapePdfText = (value: unknown) =>
+const escapeHtml = (value: unknown) =>
   String(value ?? '')
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)');
-
-const createSimplePdfBlob = (title: string, lines: string[]) => {
-  const pageLines = 38;
-  const pages = Array.from(
-    { length: Math.max(1, Math.ceil(lines.length / pageLines)) },
-    (_, pageIndex) => lines.slice(pageIndex * pageLines, (pageIndex + 1) * pageLines),
-  );
-
-  const objects: string[] = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-  ];
-  const kids: string[] = [];
-
-  pages.forEach((page, index) => {
-    const pageObjectNumber = 4 + index * 2;
-    const contentObjectNumber = pageObjectNumber + 1;
-    kids.push(`${pageObjectNumber} 0 R`);
-
-    const content = [
-      'BT',
-      '/F1 16 Tf',
-      '72 760 Td',
-      `(${escapePdfText(index === 0 ? title : `${title} continued`)}) Tj`,
-      '/F1 10 Tf',
-      '0 -28 Td',
-      ...page.flatMap((line) => [`(${escapePdfText(line)}) Tj`, '0 -16 Td']),
-      'ET',
-    ].join('\n');
-
-    objects[pageObjectNumber - 1] =
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`;
-    objects[contentObjectNumber - 1] =
-      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
-  });
-
-  objects[1] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages.length} >>`;
-
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  objects.forEach((object, index) => {
-    offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += '0000000000 65535 f \n';
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-  return new Blob([pdf], { type: 'application/pdf' });
-};
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -176,10 +144,13 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const [backendSessions, setBackendSessions] = useState<StudySession[]>([]);
   const [backendGoals, setBackendGoals] = useState<StudyGoal[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const generateEmptyHeatmapData = (range: ReportRange) => {
     const data: HeatmapDay[] = [];
-    const today = new Date();
+    const todayDateKey = formatUserDateKey(new Date());
+    const todayParts = getDateKeyParts(todayDateKey);
+    const today = new Date(todayParts.year, todayParts.month - 1, todayParts.day);
     let startDate: Date;
     let totalDays: number;
     let rangeStart: Date;
@@ -195,12 +166,12 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       rangeEnd = new Date(startDate);
       rangeEnd.setDate(rangeEnd.getDate() + HEATMAP_DAYS_PER_WEEK - 1);
     } else {
-      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const monthStart = new Date(todayParts.year, todayParts.month - 1, 1);
       rangeStart = new Date(monthStart);
       startDate = new Date(monthStart);
       firstDayOffset = (startDate.getDay() + 6) % HEATMAP_DAYS_PER_WEEK;
 
-      const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const monthEnd = new Date(todayParts.year, todayParts.month, 0);
       rangeEnd = new Date(monthEnd);
       totalDays = monthEnd.getDate();
     }
@@ -211,7 +182,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       const weekdayOffset = (date.getDay() + 6) % HEATMAP_DAYS_PER_WEEK;
 
       data.push({
-        date: formatUserDateKey(date),
+        date: toCalendarDateKey(date),
         minutes: 0,
         sessions: 0,
         distractions: 0,
@@ -250,11 +221,11 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       const firstDayInColumn = displayedHeatmapData.find((day) => day.column === column);
       if (!firstDayInColumn) return '';
 
-      const currentMonth = formatUserMonth(`${firstDayInColumn.date}T00:00:00`);
+      const currentMonth = getCalendarMonthLabel(firstDayInColumn.date);
       const previousColumn = displayedHeatmapData.find((day) => day.column === column - 1);
       if (!previousColumn) return currentMonth;
 
-      const previousMonth = formatUserMonth(`${previousColumn.date}T00:00:00`);
+      const previousMonth = getCalendarMonthLabel(previousColumn.date);
       return currentMonth === previousMonth ? '' : currentMonth;
     });
 
@@ -314,38 +285,139 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     setSelectedDay(null);
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!backendSessions.length && !backendGoals.length) {
       toast.info('No report data is available to export yet.');
       return;
     }
 
-    const lines = [
-      `Exported At: ${new Date().toISOString()}`,
-      `Report Period: ${reportRange === 'week' ? 'This Week' : 'This Month'}`,
-      '',
-      'Summary',
-      `Total Focus Minutes: ${reportTotalFocusMinutes}`,
-      `Average Focus Score: ${reportAverageFocusScore}%`,
-      `Goals Completed: ${goalsCompleted}`,
-      `Goals Incomplete: ${goalsIncomplete}`,
-      `Distraction Alerts: ${reportTotalDistractions}`,
-      '',
-      'Activity',
-      ...displayedHeatmapData
+    setExportingPdf(true);
+    try {
+      const periodLabel = reportRange === 'week' ? 'This Week' : 'This Month';
+      const heatmapHtml = displayedHeatmapData
         .filter((day) => day.inRange)
-        .map((day) => `${day.date}: ${day.minutes} min, ${day.sessions} completed sessions, ${day.distractions} distractions`),
-      '',
-      'Goals',
-      ...(reportWindowGoals.length
-        ? reportWindowGoals.map((goal) =>
-            `${goal.title}: ${goal.current_minutes ?? 0}/${goal.target_minutes ?? 0} min, ${goal.completed ? 'completed' : 'in progress'}`,
-          )
-        : ['No goals in this report window.']),
-    ];
+        .map((day) => {
+          const level = HEATMAP_LEVELS.find((item) => day.minutes >= item.min && day.minutes <= item.max) ?? HEATMAP_LEVELS[0];
+          return `<div title="${escapeHtml(day.date)}" style="width:18px;height:18px;border-radius:4px;background:${level.color};border:${day.minutes === 0 ? '1px solid #94a3b8' : '1px solid transparent'}"></div>`;
+        })
+        .join('');
+      const goalsHtml = reportWindowGoals.length
+        ? reportWindowGoals.map((goal) => {
+            const current = Number(goal.current_minutes ?? 0);
+            const target = Math.max(1, Number(goal.target_minutes ?? 0));
+            const progress = goal.completed ? 100 : Math.min(100, Math.round((current / target) * 100));
+            const fill = goal.completed ? '#2563eb' : '#f59e0b';
+            const track = goal.completed ? '#dbeafe' : '#fef3c7';
+            return `
+              <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#ffffff;box-shadow:0 6px 18px rgba(15,23,42,.06)">
+                <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start">
+                  <div>
+                    <div style="font-size:17px;font-weight:700;color:#0f172a">${escapeHtml(goal.title ?? 'Goal')}</div>
+                    <div style="margin-top:4px;color:#475569;font-size:14px">${current}/${target} min</div>
+                  </div>
+                  <div style="border:1px solid #e2e8f0;border-radius:999px;padding:5px 10px;font-size:13px;color:#0f172a">${goal.completed ? 'Completed' : 'Incomplete'}</div>
+                </div>
+                <div style="height:10px;border-radius:999px;background:${track};margin-top:14px;overflow:hidden">
+                  <div style="height:100%;width:${progress}%;border-radius:999px;background:${fill}"></div>
+                </div>
+              </div>
+            `;
+          }).join('')
+        : '<div style="color:#64748b;font-size:14px">No goals in this report window.</div>';
+      const sessionsHtml = reportWindowSessions.length
+        ? reportWindowSessions.slice(0, 16).map((session) => `
+            <div style="display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #e2e8f0;padding:10px 0;color:#475569;font-size:13px">
+              <span>${escapeHtml(toDateKey(session.started_at ?? session.created_at) ?? 'Unknown date')} • ${escapeHtml(session.session_type ?? 'session')}</span>
+              <span>${getSessionMinutes(session)} min • ${Number(session.distraction_count ?? 0)} distractions</span>
+            </div>
+          `).join('')
+        : '<div style="color:#64748b;font-size:14px">No sessions in this report window.</div>';
+      const exportElement = document.createElement('div');
+      exportElement.style.cssText = 'position:absolute;left:-10000px;top:0;width:860px;background:#f8fafc;color:#0f172a;font-family:Arial,Helvetica,sans-serif;padding:28px;';
+      exportElement.innerHTML = `
+        <section style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;box-shadow:0 10px 24px rgba(15,23,42,.08)">
+          <div style="display:flex;justify-content:space-between;gap:24px;align-items:flex-start">
+            <div>
+              <div style="font-size:34px;font-weight:800;color:#0f172a;letter-spacing:-.01em">FocusSpark Report</div>
+              <div style="margin-top:8px;color:#475569;font-size:15px">${periodLabel} • Exported ${escapeHtml(new Date().toLocaleString())}</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:26px">
+            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px;background:#f8fafc"><div style="color:#64748b;font-size:13px">Focused Minutes</div><div style="font-size:32px;font-weight:800;margin-top:8px">${reportTotalFocusMinutes}</div></div>
+            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px;background:#f8fafc"><div style="color:#64748b;font-size:13px">Active Days</div><div style="font-size:32px;font-weight:800;margin-top:8px">${activeDays}</div></div>
+            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px;background:#f8fafc"><div style="color:#64748b;font-size:13px">Goals Completed</div><div style="font-size:32px;font-weight:800;margin-top:8px">${goalsCompleted}</div></div>
+            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px;background:#f8fafc"><div style="color:#64748b;font-size:13px">Distractions</div><div style="font-size:32px;font-weight:800;margin-top:8px">${reportTotalDistractions}</div></div>
+          </div>
+        </section>
+        <section style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-top:20px;box-shadow:0 10px 24px rgba(15,23,42,.06)">
+          <h2 style="margin:0 0 16px;font-size:22px;color:#0f172a">Active-Day Heatmap</h2>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">${heatmapHtml}</div>
+        </section>
+        <section style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-top:20px;box-shadow:0 10px 24px rgba(15,23,42,.06)">
+          <h2 style="margin:0 0 16px;font-size:22px;color:#0f172a">Goals</h2>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">${goalsHtml}</div>
+        </section>
+        <section style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin-top:20px;box-shadow:0 10px 24px rgba(15,23,42,.06)">
+          <h2 style="margin:0 0 10px;font-size:22px;color:#0f172a">Sessions</h2>
+          ${sessionsHtml}
+        </section>
+      `;
+      document.body.appendChild(exportElement);
 
-    downloadBlob('focusspark-report.pdf', createSimplePdfBlob('FocusSpark Report Export', lines));
-    toast.success('PDF export ready');
+      const canvas = await html2canvas(exportElement, {
+        backgroundColor: '#f8fafc',
+        scale: 2,
+        useCORS: true,
+      });
+      exportElement.remove();
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 12;
+      const imageWidth = pageWidth - margin * 2;
+      const pageContentHeight = pageHeight - margin * 2;
+      const pageCanvas = document.createElement('canvas');
+      const pageContext = pageCanvas.getContext('2d');
+      if (!pageContext) {
+        throw new Error('Could not create PDF page canvas.');
+      }
+
+      const pageCanvasHeight = Math.floor((pageContentHeight / imageWidth) * canvas.width);
+      pageCanvas.width = canvas.width;
+
+      for (let sourceY = 0, pageIndex = 0; sourceY < canvas.height; sourceY += pageCanvasHeight, pageIndex += 1) {
+        const sliceHeight = Math.min(pageCanvasHeight, canvas.height - sourceY);
+        pageCanvas.height = sliceHeight;
+        pageContext.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
+        pageContext.drawImage(
+          canvas,
+          0,
+          sourceY,
+          canvas.width,
+          sliceHeight,
+          0,
+          0,
+          pageCanvas.width,
+          sliceHeight,
+        );
+
+        if (pageIndex > 0) {
+          pdf.addPage();
+        }
+
+        const sliceImageHeight = (sliceHeight * imageWidth) / canvas.width;
+        pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imageWidth, sliceImageHeight);
+      }
+
+      pdf.save(`focusspark-report-${reportRange}-${formatExportTimestamp()}.pdf`);
+      toast.success('PDF export ready');
+    } catch (error) {
+      toast.error('Could not export PDF.');
+      console.warn('PDF export failed.', error);
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -354,19 +426,30 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       return;
     }
 
+    const exportedAt = new Date().toISOString();
+    const periodLabel = reportRange === 'week' ? 'This Week' : 'This Month';
+    const goalProgressPercent = (goal: StudyGoal) => {
+      const target = Number(goal.target_minutes ?? 0);
+      if (!target) return 0;
+      return Math.min(100, Math.round((Number(goal.current_minutes ?? 0) / target) * 100));
+    };
+
     const rows: unknown[][] = [
       ['FocusSpark Report Export'],
-      ['Exported At', new Date().toISOString()],
-      ['Report Period', reportRange === 'week' ? 'This Week' : 'This Month'],
+      ['Exported At', exportedAt],
+      ['Timezone', Intl.DateTimeFormat().resolvedOptions().timeZone],
+      ['Report Period', periodLabel],
       [],
       ['Summary'],
       ['Total Focus Minutes', reportTotalFocusMinutes],
-      ['Average Focus Score', reportAverageFocusScore],
+      ['Average Focus Score %', reportAverageFocusScore],
+      ['Completed Sessions', completedHeatmapSessions],
+      ['Active Days', activeDays],
       ['Goals Completed', goalsCompleted],
       ['Goals Incomplete', goalsIncomplete],
       ['Distraction Alerts', reportTotalDistractions],
       [],
-      [reportRange === 'week' ? 'Activity Heatmap This Week' : 'Activity Heatmap This Month'],
+      [`Activity Heatmap ${periodLabel}`],
       ['Date', 'Active', 'Focus Minutes', 'Completed Sessions', 'Distractions'],
       ...displayedHeatmapData.filter((day) => day.inRange).map((day) => [
         day.date,
@@ -376,18 +459,50 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
         day.distractions,
       ]),
       [],
+      ['Session Details'],
+      [
+        'Session ID',
+        'Date',
+        'Started At',
+        'Type',
+        'Completed',
+        'Focus Minutes',
+        'Planned Minutes',
+        'Distractions',
+        'Focus Score %',
+      ],
+      ...reportWindowSessions.map((session) => {
+        const distractions = Number(session.distraction_count ?? 0);
+        const focusScore = session.completed && session.session_type === 'work'
+          ? Math.max(0, 100 - distractions * 10)
+          : '';
+
+        return [
+          session.id ?? '',
+          toDateKey(session.started_at ?? session.created_at) ?? '',
+          session.started_at ?? session.created_at ?? '',
+          session.session_type ?? '',
+          session.completed ? 'Yes' : 'No',
+          getSessionMinutes(session),
+          session.planned_duration_minutes ?? '',
+          distractions,
+          focusScore,
+        ];
+      }),
+      [],
       ['Goals'],
-      ['Title', 'Current Minutes', 'Target Minutes', 'Completed', 'Goal Date'],
+      ['Title', 'Current Minutes', 'Target Minutes', 'Progress %', 'Completed', 'Goal Date'],
       ...reportWindowGoals.map((goal) => [
         goal.title,
         goal.current_minutes ?? 0,
         goal.target_minutes ?? 0,
+        goalProgressPercent(goal),
         goal.completed ? 'Yes' : 'No',
         goal.goal_date ?? goal.due_date ?? '',
       ]),
     ];
 
-    downloadCsv('focusspark-report.csv', rows);
+    downloadCsv(`focusspark-report-${reportRange}-${formatExportTimestamp()}.csv`, rows);
     toast.success('CSV export ready');
   };
 
@@ -432,12 +547,15 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div id="reports-print-page" className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border">
         <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
+          <div
+            className="flex min-h-16 w-full flex-col items-start gap-3 sm:block"
+            style={{ position: 'relative', paddingRight: 380 }}
+          >
+            <div className="flex min-w-0 items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -446,15 +564,24 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
               >
                 <Home className="w-5 h-5" />
               </Button>
-              <div>
+              <div className="min-w-0">
                 <h1 className="gradient-text">Focus Reports</h1>
-                <p className="text-sm text-secondary">
+                <p className="max-w-xl text-sm text-secondary">
                   Track your progress for the selected report period
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-secondary">
+            <div
+              data-pdf-ignore="true"
+              className="flex w-fit items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-secondary"
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
+              }}
+            >
               <span>Report period</span>
               <Select value={reportRange} onValueChange={handleReportRangeChange}>
                 <SelectTrigger className="h-6 w-32 border-0 bg-transparent p-0 text-sm text-secondary shadow-none focus:ring-0">
@@ -543,6 +670,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
 
         {/* Calendar Heatmap */}
         <motion.div
+          data-pdf-ignore="true"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -726,9 +854,9 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap items-center gap-4">
-                <Button onClick={handleExportPDF} className="gap-2" variant="outline">
+                <Button onClick={handleExportPDF} className="gap-2" variant="outline" disabled={exportingPdf}>
                   <FileText className="w-4 h-4" />
-                  Export as PDF
+                  {exportingPdf ? 'Exporting PDF...' : 'Export as PDF'}
                 </Button>
 
                 <Button onClick={handleExportCSV} className="gap-2" variant="outline">

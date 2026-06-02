@@ -47,6 +47,30 @@ const goalProgress = (goal: StudyGoal) => {
 
 const goalTargetMinutes = (goal: StudyGoal) => Math.max(5, Number(goal?.target_minutes ?? 5));
 
+const statCards = [
+  {
+    label: 'Active goal',
+    icon: Clock,
+    shell: 'border-border bg-card',
+    iconShell: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
+  },
+  {
+    label: 'Completed today',
+    icon: CheckCircle2,
+    shell: 'border-border bg-card',
+    iconShell: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
+  },
+  {
+    label: 'Incomplete today',
+    icon: CalendarDays,
+    shell: 'border-border bg-card',
+    iconShell: 'bg-amber-500/10',
+    iconColor: 'text-amber-400',
+  },
+];
+
 export function GoalsPage({ onNavigate }: GoalsPageProps) {
   const [goals, setGoals] = useState<StudyGoal[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -79,6 +103,8 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
   const activeGoal = todaysGoals.find((goal) => !goal.completed);
   const completedToday = todaysGoals.filter((goal) => goal.completed).length;
   const incompleteToday = todaysGoals.filter((goal) => !goal.completed).length;
+  const activeGoalProgress = activeGoal ? goalProgress(activeGoal) : 0;
+  const activeGoalProgressWidth = Math.min(100, Math.max(activeGoalProgress > 0 ? 8 : 0, activeGoalProgress));
 
   const handleCreateGoal = async () => {
     const token = localStorage.getItem('auth_token');
@@ -127,39 +153,59 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
     }
   };
 
-  const renderGoal = (goal: StudyGoal) => (
-    <Card key={goal.id} className="border-border bg-card shadow-sm">
+  const renderGoal = (goal: StudyGoal) => {
+    const completed = Boolean(goal.completed);
+    const progress = goalProgress(goal);
+
+    return (
+    <Card
+      key={goal.id}
+      className={
+        completed
+          ? 'overflow-hidden border-border bg-card shadow-sm ring-1 ring-emerald-500/10'
+          : 'overflow-hidden border-border bg-card shadow-sm ring-1 ring-blue-500/10'
+      }
+    >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/60">
-            {goal.completed ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Clock className="h-5 w-5 text-sky-500" />}
+          <div
+            className={
+              completed
+                ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10'
+                : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10'
+            }
+          >
+            {completed ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : <Clock className="h-5 w-5 text-blue-400" />}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="min-w-0 truncate font-medium">{goal.title}</p>
               <Badge
                 className={
-                  goal.completed
-                    ? 'border-emerald-500/35 bg-transparent text-emerald-500 dark:text-emerald-300'
-                    : 'border-border bg-transparent text-secondary'
+                  completed
+                    ? 'border-emerald-500/30 bg-transparent text-emerald-600 dark:text-emerald-300'
+                    : 'border-blue-500/30 bg-transparent text-blue-600 dark:text-blue-300'
                 }
                 variant="outline"
               >
-                {goal.completed ? 'Completed' : 'Incomplete'}
+                {completed ? 'Completed' : 'Incomplete'}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-secondary">
               {goal.current_minutes ?? 0}/{goalTargetMinutes(goal)} min
             </p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-300/80 dark:bg-slate-700/70">
-              <div className="h-full bg-primary" style={{ width: `${goalProgress(goal)}%` }} />
+              <div
+                className={completed ? 'h-full bg-gradient-to-r from-emerald-500 to-teal-400' : 'h-full bg-gradient-to-r from-blue-500 to-teal-400'}
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
-          {!goal.completed && (
+          {!completed && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 shrink-0"
+              className="h-9 w-9 shrink-0 hover:bg-blue-500/10 hover:text-blue-500"
               onClick={() => handleDeleteGoal(Number(goal.id))}
               aria-label="Delete goal"
             >
@@ -170,6 +216,7 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
       </CardContent>
     </Card>
   );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -199,18 +246,19 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
             </div>
           )}
 
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="overflow-hidden border-border bg-card shadow-sm ring-1 ring-blue-500/10">
             <CardContent className="p-4">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_120px_150px]">
-                <Input value={newGoalTitle} onChange={(event) => setNewGoalTitle(event.target.value)} placeholder="Study block" />
+                <Input value={newGoalTitle} onChange={(event) => setNewGoalTitle(event.target.value)} placeholder="Study block" className="bg-background/80" />
                 <Input
                   value={newGoalMinutes}
                   onChange={(event) => setNewGoalMinutes(event.target.value)}
                   type="number"
                   min={5}
                   aria-label="Goal minutes"
+                  className="bg-background/80"
                 />
-                <Button variant="outline" className="justify-between" onClick={handleCreateGoal} disabled={savingGoal}>
+                <Button className="justify-between bg-gradient-to-r from-blue-500 to-teal-500 text-white hover:opacity-90" onClick={handleCreateGoal} disabled={savingGoal}>
                   Add Goal
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -219,26 +267,41 @@ export function GoalsPage({ onNavigate }: GoalsPageProps) {
           </Card>
 
           <div className="grid gap-3 md:grid-cols-3">
-            <Card className="border-border bg-card shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-sm text-secondary">Active goal</p>
-                <p className="mt-1 text-2xl font-semibold leading-tight">
-                  {activeGoal ? `${activeGoal.current_minutes ?? 0}/${goalTargetMinutes(activeGoal)} min` : 'None'}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-sm text-secondary">Completed today</p>
-                <p className="mt-1 text-2xl font-semibold leading-tight">{completedToday}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-sm text-secondary">Incomplete today</p>
-                <p className="mt-1 text-2xl font-semibold leading-tight">{incompleteToday}</p>
-              </CardContent>
-            </Card>
+            {statCards.map((stat) => {
+              const Icon = stat.icon;
+              const value = stat.label === 'Active goal'
+                ? activeGoal ? `${activeGoal.current_minutes ?? 0}/${goalTargetMinutes(activeGoal)} min` : 'None'
+                : stat.label === 'Completed today'
+                  ? completedToday
+                  : incompleteToday;
+
+              return (
+                <Card key={stat.label} className={`${stat.shell} shadow-sm ring-1 ring-blue-500/5`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-secondary">{stat.label}</p>
+                        <p className="mt-1 text-2xl font-semibold leading-tight">{value}</p>
+                      </div>
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.iconShell}`}>
+                        <Icon className={`h-5 w-5 ${stat.iconColor}`} />
+                      </div>
+                    </div>
+                    {stat.label === 'Active goal' && activeGoal && (
+                      <div
+                        className="mt-4 h-2.5 overflow-hidden rounded-full border border-blue-500/15 bg-slate-200/90 dark:bg-slate-700/80"
+                        aria-label={`Active goal progress ${activeGoalProgress}%`}
+                      >
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-teal-500 to-blue-500"
+                          style={{ width: `${activeGoalProgressWidth}%` }}
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           <section className="space-y-3">

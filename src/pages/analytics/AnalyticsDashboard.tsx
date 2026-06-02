@@ -61,15 +61,19 @@ const toCsvCell = (value: unknown) => {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
+const formatExportTimestamp = () => new Date().toISOString().replace(/[:.]/g, '-');
+
 const downloadCsv = (filename: string, rows: unknown[][]) => {
-  const csv = rows.map((row) => row.map(toCsvCell).join(',')).join('\n');
+  const csv = `\uFEFF${rows.map((row) => row.map(toCsvCell).join(',')).join('\r\n')}`;
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
 export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
@@ -162,22 +166,35 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
       return;
     }
 
-    downloadCsv('focusspark-analytics.csv', [
+    const exportedAt = new Date().toISOString();
+    const backendMetricRows = Object.entries({
+      total_focus_minutes: totalFocusMinutes,
+      average_focus_score: averageFocusScore,
+      completed_sessions: completedSessions,
+      total_distractions: totalDistractions,
+      current_streak: currentStreak,
+      goals_completed: goalsCompleted,
+      goals_incomplete: goalsIncomplete,
+      goal_completion_rate: goalCompletionRate,
+    });
+
+    downloadCsv(`focusspark-analytics-${formatExportTimestamp()}.csv`, [
       ['FocusSpark Analytics Export'],
-      ['Exported At', new Date().toISOString()],
+      ['Exported At', exportedAt],
+      ['Timezone', Intl.DateTimeFormat().resolvedOptions().timeZone],
       [],
       ['Summary'],
       ['Total Focus Minutes', totalFocusMinutes],
       ['Average Focus Score', averageFocusScore],
       ['Completed Sessions', completedSessions],
       ['Distractions', totalDistractions],
-      ['Current Study Streak', currentStreak],
+      ['Current Study Streak Days', currentStreak],
       ['Goals Completed', goalsCompleted],
       ['Goals Incomplete', goalsIncomplete],
       ['Goal Completion Rate', `${goalCompletionRate}%`],
       [],
       ['Daily Focus'],
-      ['Day', 'Focus Minutes', 'Distractions', 'Focus Score'],
+      ['Day', 'Focus Minutes', 'Distractions', 'Focus Score %'],
       ...focusData.map((item) => [item.date, item.minutes, item.distractions, item.accuracy]),
       [],
       ['Weekly Consistency'],
@@ -187,6 +204,10 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
       ['Insights'],
       ['Title', 'Value', 'Detail'],
       ...studyInsights.map((insight) => [insight.title, insight.value, insight.detail]),
+      [],
+      ['Backend Metric Snapshot'],
+      ['Metric', 'Value'],
+      ...backendMetricRows,
     ]);
     toast.success('Analytics export ready.');
   };
@@ -195,8 +216,8 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl">
         <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex min-h-16 w-full flex-col items-start gap-3 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -205,21 +226,23 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
               >
                 <Home className="h-5 w-5" />
               </Button>
-              <div>
+              <div className="min-w-0">
                 <h1 className="gradient-text flex items-center gap-2">
                   <BarChart3 className="h-6 w-6" />
                   Focus Analytics
                 </h1>
-                <p className="text-sm text-secondary">
+                <p className="max-w-xl text-sm text-secondary">
                   Study patterns, consistency, and focus trends
                 </p>
               </div>
             </div>
 
-            <Button variant="outline" onClick={handleExportData} className="gap-2">
-              <Download className="h-4 w-4" />
-              Export Data
-            </Button>
+            <div className="flex w-full sm:ml-auto sm:w-auto sm:self-center sm:justify-end">
+              <Button variant="outline" onClick={handleExportData} className="gap-2">
+                <Download className="h-4 w-4" />
+                Export Data
+              </Button>
+            </div>
           </div>
         </div>
       </div>

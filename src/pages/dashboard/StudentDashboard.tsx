@@ -40,6 +40,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord, getBoolean, getNumber, getString } from '../../utils/apiTypes';
+import { playSoundForNewUnreadNotifications } from '../../utils/notificationSound';
 import { formatUserDateTime, setUserTimeZone } from '../../utils/timezone';
 
 interface StudentDashboardProps {
@@ -269,6 +270,14 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
 
       if (unlockedAchievements.length > 0) {
         setAchievementPopup({ achievements: unlockedAchievements });
+        playSoundForNewUnreadNotifications(
+          unlockedAchievements.map((achievement) => ({
+            id: `achievement-${achievement.id}`,
+            read: false,
+            created_at: achievement.unlockedAt,
+          })),
+        );
+        window.dispatchEvent(new CustomEvent('focusspark:notifications-changed'));
       }
     } catch (error) {
       console.warn('Achievement unlock popup failed.', error);
@@ -327,6 +336,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   const activeGoalProgress = activeGoal?.target_minutes
     ? Math.round((Number(activeGoal.current_minutes ?? 0) / Number(activeGoal.target_minutes)) * 100)
     : 0;
+  const activeGoalProgressWidth = Math.min(100, Math.max(activeGoalProgress > 0 ? 8 : 0, activeGoalProgress));
   const AchievementPopupIcon = achievementPopup
     ? iconByBadgeName[achievementPopup.achievements[0]?.badgeIcon ?? ''] ?? Award
     : Award;
@@ -623,18 +633,21 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
                 </CardHeader>
                 <CardContent className="flex h-full flex-col gap-4">
                   {activeGoal ? (
-                    <div className="rounded-lg border border-teal-500/30 bg-teal-500/10 p-3">
+                    <div className="rounded-lg border border-border bg-card p-3 ring-1 ring-teal-500/10">
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <p className="min-w-0 truncate text-sm font-medium">{activeGoal.title}</p>
                         <span className="shrink-0 text-xs text-secondary">
                           {activeGoal.current_minutes ?? 0}/{activeGoal.target_minutes ?? 0} min
                         </span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-300/80 dark:bg-slate-700/70">
+                      <div
+                        className="mt-4 h-2.5 overflow-hidden rounded-full border border-teal-500/15 bg-slate-200/90 dark:bg-slate-700/80"
+                        aria-label={`Goal progress ${Math.min(100, Math.max(0, activeGoalProgress))}%`}
+                      >
                         <motion.div
-                          className="h-full bg-gradient-to-r from-teal-500 to-blue-500"
+                          className="h-full rounded-full bg-gradient-to-r from-teal-500 to-blue-500"
                           initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(100, activeGoalProgress)}%` }}
+                          animate={{ width: `${activeGoalProgressWidth}%` }}
                           transition={{ duration: 0.4 }}
                         />
                       </div>

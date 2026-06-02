@@ -29,7 +29,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { playSoundForNewUnreadNotifications, unlockNotificationSound } from '../../utils/notificationSound';
-import { formatUserDate, setUserTimeZone } from '../../utils/timezone';
+import { formatUserDate, parseBackendDate, setUserTimeZone } from '../../utils/timezone';
 
 function resolveAssetUrl(url: string) {
   if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
@@ -72,7 +72,7 @@ function getAuthHeaders() {
 }
 
 function formatNotificationTime(value: string) {
-  const createdAt = new Date(value).getTime();
+  const createdAt = parseBackendDate(value).getTime();
   if (!Number.isFinite(createdAt)) return '';
 
   const diffSeconds = Math.max(0, Math.floor((Date.now() - createdAt) / 1000));
@@ -178,6 +178,25 @@ export function DashboardNavbar({
     unlockNotificationSound();
     const timeoutId = window.setTimeout(() => void loadNotifications(), 0);
     return () => window.clearTimeout(timeoutId);
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    let timeoutId: number | undefined;
+
+    const onNotificationsChanged = () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+      timeoutId = window.setTimeout(() => void loadNotifications(), 150);
+    };
+
+    window.addEventListener('focusspark:notifications-changed', onNotificationsChanged);
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+      window.removeEventListener('focusspark:notifications-changed', onNotificationsChanged);
+    };
   }, [loadNotifications]);
 
   useEffect(() => {
