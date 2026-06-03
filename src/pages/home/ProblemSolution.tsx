@@ -39,20 +39,23 @@ export function ProblemSolution() {
             className="bg-card border border-border rounded-2xl px-6 py-8 glow-blue-purple sm:px-8 sm:py-10"
           >
             <div className="mb-6">
-              <h3 className="text-2xl mb-2 text-foreground">119% Productivity Increase</h3>
+              <h3 className="text-2xl mb-2 text-foreground">40% Productivity Increase</h3>
               <p className="text-muted-foreground">Average Study vs FocusSpark AI</p>
             </div>
             
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data}>
+              <LineChart data={data} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis 
                   dataKey="time" 
                   stroke="#B0B8C4"
+                  padding={{ left: 8, right: 14 }}
                   style={{ fontSize: '12px' }}
                 />
                 <YAxis 
                   stroke="#B0B8C4"
+                  domain={[0, 105]}
+                  ticks={[0, 25, 50, 75, 100]}
                   style={{ fontSize: '12px' }}
                 />
                 <Tooltip

@@ -27,7 +27,7 @@ import {
 import { toast } from 'sonner';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { type ApiRecord } from '../../utils/apiTypes';
-import { formatUserDateKey } from '../../utils/timezone';
+import { formatUserDateKey, getUserTimeZone } from '../../utils/timezone';
 
 interface ReportsAnalyticsProps {
   onNavigate: (page: string) => void;
@@ -145,6 +145,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const [backendGoals, setBackendGoals] = useState<StudyGoal[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [userTimeZone, setUserTimeZoneState] = useState(() => getUserTimeZone());
 
   const generateEmptyHeatmapData = (range: ReportRange) => {
     const data: HeatmapDay[] = [];
@@ -194,7 +195,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     return data;
   };
 
-  const heatmapData = useMemo(() => generateEmptyHeatmapData(reportRange), [reportRange]);
+  const heatmapData = useMemo(() => generateEmptyHeatmapData(reportRange), [reportRange, userTimeZone]);
   const heatmapWeeks = Math.max(1, ...heatmapData.map((day) => day.column));
   const displayedHeatmapData = useMemo(() => {
     const sessionBuckets = new Map<string, Omit<HeatmapDay, 'inRange' | 'column' | 'row'>>();
@@ -235,6 +236,19 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     ? displayedHeatmapData.find((d) => d.date === selectedDay)
     : null;
   const todayDateKey = formatUserDateKey(new Date());
+
+  useEffect(() => {
+    const syncUserTimeZone = () => setUserTimeZoneState(getUserTimeZone());
+
+    syncUserTimeZone();
+    window.addEventListener('focusspark-timezone-change', syncUserTimeZone);
+    window.addEventListener('storage', syncUserTimeZone);
+
+    return () => {
+      window.removeEventListener('focusspark-timezone-change', syncUserTimeZone);
+      window.removeEventListener('storage', syncUserTimeZone);
+    };
+  }, []);
 
   useEffect(() => {
     const loadReports = async () => {
