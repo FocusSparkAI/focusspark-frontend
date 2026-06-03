@@ -119,7 +119,7 @@ export function SciencePage() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { value: '119%', label: 'Productivity Increase' },
+              { value: '40%', label: 'Productivity Increase' },
               { value: '4.2x', label: 'Faster Flow State' },
               { value: '87%', label: 'Student Satisfaction' },
             ].map((stat, index) => (

@@ -13,6 +13,7 @@ export function getUserTimeZone() {
 export function setUserTimeZone(timeZone: unknown) {
   if (typeof timeZone !== 'string' || !timeZone.trim()) return;
   localStorage.setItem(TIMEZONE_STORAGE_KEY, timeZone.trim());
+  window.dispatchEvent(new Event('focusspark-timezone-change'));
 }
 
 export function parseBackendDate(value: string | Date) {

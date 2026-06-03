@@ -147,8 +147,8 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-xl">
         <div className="w-full px-4 py-4 sm:px-6 lg:px-10">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex w-full flex-wrap items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -167,7 +167,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
 
             <Button
               variant="outline"
-              className="shrink-0"
+              className="ml-auto shrink-0"
               onClick={() => void markAllNotificationsRead()}
               disabled={unreadCount === 0}
             >
