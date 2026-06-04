@@ -94,17 +94,17 @@ const getCalendarMonthLabel = (dateKey: string) => {
   return HEATMAP_MONTH_LABELS[month - 1] ?? '';
 };
 
-const toDateKey = (value: unknown) => {
+const toDateKey = (value: unknown, timeZone?: string) => {
   if (!value) return null;
-  const dateKey = formatUserDateKey(String(value));
+  const dateKey = formatUserDateKey(String(value), timeZone);
   return dateKey || null;
 };
 
-const toGoalDateKey = (value: unknown) => {
+const toGoalDateKey = (value: unknown, timeZone?: string) => {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
-  return toDateKey(value);
+  return toDateKey(value, timeZone);
 };
 
 const toCsvCell = (value: unknown) => {
@@ -147,9 +147,9 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [userTimeZone, setUserTimeZoneState] = useState(() => getUserTimeZone());
 
-  const generateEmptyHeatmapData = (range: ReportRange) => {
+  const generateEmptyHeatmapData = (range: ReportRange, timeZone: string) => {
     const data: HeatmapDay[] = [];
-    const todayDateKey = formatUserDateKey(new Date());
+    const todayDateKey = formatUserDateKey(new Date(), timeZone);
     const todayParts = getDateKeyParts(todayDateKey);
     const today = new Date(todayParts.year, todayParts.month - 1, todayParts.day);
     let startDate: Date;
@@ -195,12 +195,15 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     return data;
   };
 
-  const heatmapData = useMemo(() => generateEmptyHeatmapData(reportRange), [reportRange, userTimeZone]);
+  const heatmapData = useMemo(
+    () => generateEmptyHeatmapData(reportRange, userTimeZone),
+    [reportRange, userTimeZone],
+  );
   const heatmapWeeks = Math.max(1, ...heatmapData.map((day) => day.column));
   const displayedHeatmapData = useMemo(() => {
     const sessionBuckets = new Map<string, Omit<HeatmapDay, 'inRange' | 'column' | 'row'>>();
     backendSessions.forEach((session) => {
-      const date = toDateKey(session?.started_at ?? session?.created_at);
+      const date = toDateKey(session?.started_at ?? session?.created_at, userTimeZone);
       if (!date) return;
 
       const current = sessionBuckets.get(date) ?? { date, minutes: 0, sessions: 0, distractions: 0 };
@@ -215,7 +218,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
         ? { ...day, ...(sessionBuckets.get(day.date) ?? {}) }
         : { ...day, minutes: 0, sessions: 0, distractions: 0 },
     );
-  }, [backendSessions, heatmapData]);
+  }, [backendSessions, heatmapData, userTimeZone]);
   const heatmapMonthLabels = useMemo(() => {
     const columns = Array.from({ length: heatmapWeeks }, (_, columnIndex) => {
       const column = columnIndex + 1;
@@ -235,7 +238,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   const selectedDayData = selectedDay
     ? displayedHeatmapData.find((d) => d.date === selectedDay)
     : null;
-  const todayDateKey = formatUserDateKey(new Date());
+  const todayDateKey = formatUserDateKey(new Date(), userTimeZone);
 
   useEffect(() => {
     const syncUserTimeZone = () => setUserTimeZoneState(getUserTimeZone());
@@ -341,7 +344,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       const sessionsHtml = reportWindowSessions.length
         ? reportWindowSessions.slice(0, 16).map((session) => `
             <div style="display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #e2e8f0;padding:10px 0;color:#475569;font-size:13px">
-              <span>${escapeHtml(toDateKey(session.started_at ?? session.created_at) ?? 'Unknown date')} • ${escapeHtml(session.session_type ?? 'session')}</span>
+              <span>${escapeHtml(toDateKey(session.started_at ?? session.created_at, userTimeZone) ?? 'Unknown date')} • ${escapeHtml(session.session_type ?? 'session')}</span>
               <span>${getSessionMinutes(session)} min • ${Number(session.distraction_count ?? 0)} distractions</span>
             </div>
           `).join('')
@@ -493,7 +496,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
 
         return [
           session.id ?? '',
-          toDateKey(session.started_at ?? session.created_at) ?? '',
+          toDateKey(session.started_at ?? session.created_at, userTimeZone) ?? '',
           session.started_at ?? session.created_at ?? '',
           session.session_type ?? '',
           session.completed ? 'Yes' : 'No',
@@ -523,11 +526,14 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
   // Summary stats
   const heatmapSessionDates = new Set(displayedHeatmapData.filter((day) => day.inRange).map((day) => day.date));
   const reportWindowSessions = backendSessions.filter((session) => {
-    const date = toDateKey(session?.started_at ?? session?.created_at);
+    const date = toDateKey(session?.started_at ?? session?.created_at, userTimeZone);
     return date ? heatmapSessionDates.has(date) : false;
   });
   const reportWindowGoals = backendGoals.filter((goal) => {
-    const date = toGoalDateKey(goal?.goal_date ?? goal?.due_date ?? goal?.completed_at ?? goal?.updated_at);
+    const date = toGoalDateKey(
+      goal?.goal_date ?? goal?.due_date ?? goal?.completed_at ?? goal?.updated_at,
+      userTimeZone,
+    );
     return date ? heatmapSessionDates.has(date) : false;
   });
   const reportWindowWorkSessions = reportWindowSessions.filter(
