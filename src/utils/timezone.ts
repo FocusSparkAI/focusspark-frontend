@@ -43,7 +43,7 @@ export function formatUserDate(value: string | Date) {
   }).format(date);
 }
 
-export function formatUserDateKey(value: string | Date) {
+export function formatUserDateKey(value: string | Date, timeZone = getUserTimeZone()) {
   const date = parseBackendDate(value);
   if (Number.isNaN(date.getTime())) return '';
 
@@ -51,7 +51,7 @@ export function formatUserDateKey(value: string | Date) {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-    timeZone: getUserTimeZone(),
+    timeZone,
   }).formatToParts(date);
   const year = parts.find((part) => part.type === 'year')?.value ?? '0000';
   const month = parts.find((part) => part.type === 'month')?.value ?? '00';

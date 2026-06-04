@@ -20,7 +20,7 @@ The Chrome-extension study workspace lives in `FocusSpark-Extension`.
 ## Features
 
 - Public landing, About, Contact, and Science pages
-- Public Science white paper download at `/focusspark-science-white-paper.pdf`
+- Public Science white paper download at `/focusspark-white-paper.pdf`
 - Signup, signin, forgot-password flow, and protected routes
 - Onboarding flow
 - Student dashboard with study overview and profile avatar support
@@ -134,7 +134,7 @@ src/pages/reports/ReportsAnalytics.tsx  # Reports, analytics, exports
 src/pages/static/SciencePage.tsx        # Public Science page and PDF download
 src/pages/notifications/NotificationsPage.tsx
 src/components/layout/DashboardNavbar.tsx
-public/focusspark-science-white-paper.pdf
+public/focusspark-white-paper.pdf
 ```
 
 ## Demo Checklist

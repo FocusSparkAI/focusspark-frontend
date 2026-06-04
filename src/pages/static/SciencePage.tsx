@@ -37,7 +37,7 @@ export function SciencePage() {
               size="lg"
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all px-8 py-6"
             >
-              <a href="/focusspark-science-white-paper.pdf" download>
+              <a href="/focusspark-white-paper.pdf" download>
                 <FileText className="w-5 h-5 mr-2" />
                 Read Our White Paper
               </a>
