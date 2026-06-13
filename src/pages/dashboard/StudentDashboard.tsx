@@ -35,7 +35,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
-import { DashboardNavbar } from '../../components/layout/DashboardNavbar';
+import { DashboardNavbar, type DashboardNavbarBootstrap } from '../../components/layout/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
@@ -58,6 +58,8 @@ type AchievementSummary = {
   badgeIcon: string;
   unlocked: boolean;
   unlockedAt?: string;
+  notificationId?: number;
+  notificationRead: boolean;
 };
 
 type AchievementPopup = {
@@ -248,6 +250,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   const [profileName, setProfileName] = useState(readCachedProfileName);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [achievementPopup, setAchievementPopup] = useState<AchievementPopup | null>(null);
+  const [navbarBootstrapData, setNavbarBootstrapData] = useState<DashboardNavbarBootstrap | null>(null);
 
   const loadDashboard = async () => {
     const token = localStorage.getItem('auth_token');
@@ -255,26 +258,37 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
     const headers = { Authorization: `Bearer ${token}` };
 
     try {
-      const dashboardResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.dashboard), { headers });
+      const response = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.dashboard.frontend), { headers });
+      const data = response.data ?? {};
 
-      setDashboardStats(dashboardResponse.data);
+      setNavbarBootstrapData(data as DashboardNavbarBootstrap);
+      setDashboardStats(data.dashboard ?? null);
       setLoadError(null);
-    } catch (error) {
-      setLoadError('Could not load dashboard stats yet.');
-      console.warn('Dashboard stats failed.', error);
-    }
 
-    try {
-      const achievementsResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.achievements.list), { headers });
+      const profile = data.profile ?? {};
+      setUserTimeZone(profile.timezone);
+      const nextProfileName =
+        profile.full_name ??
+        profile.fullName ??
+        profile.name ??
+        '';
+      setProfileName(nextProfileName);
+      if (nextProfileName) {
+        localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextProfileName);
+      } else {
+        localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
+      }
 
-      const achievements = Array.isArray(achievementsResponse.data)
-        ? (achievementsResponse.data as ApiRecord[]).map((item): AchievementSummary => ({
+      const achievements = Array.isArray(data.unlocked_achievements)
+        ? (data.unlocked_achievements as ApiRecord[]).map((item): AchievementSummary => ({
             id: String(item.id ?? item.key ?? item.title),
             title: getString(item.title) || getString(item.achievement_title, 'Achievement'),
             description: getString(item.description),
             badgeIcon: getString(item.badge_icon).toLowerCase(),
-            unlocked: getBoolean(item.unlocked),
+            unlocked: getBoolean(item.unlocked, true),
             unlockedAt: getString(item.unlocked_at) || undefined,
+            notificationId: getNumber(item.notification_id) || undefined,
+            notificationRead: getBoolean(item.notification_read),
           }))
         : [];
 
@@ -285,7 +299,11 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
           const leftTime = left.unlockedAt ? new Date(left.unlockedAt).getTime() : 0;
           return rightTime - leftTime;
         })
-        .filter((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
+        .filter(
+          (achievement) =>
+            !achievement.notificationRead &&
+            localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true',
+        );
 
       if (unlockedAchievements.length > 0) {
         setAchievementPopup({ achievements: unlockedAchievements });
@@ -296,29 +314,11 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
             created_at: achievement.unlockedAt,
           })),
         );
-        window.dispatchEvent(new CustomEvent('focusspark:notifications-changed'));
       }
     } catch (error) {
-      console.warn('Achievement unlock popup failed.', error);
-    }
-
-    try {
-      const profileResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
-        headers,
-      });
-      setUserTimeZone(profileResponse.data?.timezone);
-      const nextProfileName =
-        profileResponse.data?.full_name ??
-        profileResponse.data?.fullName ??
-        profileResponse.data?.name ??
-        '';
-      setProfileName(nextProfileName);
-      if (nextProfileName) {
-        localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextProfileName);
-      } else {
-        localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
-      }
-    } catch {
+      setLoadError('Could not load dashboard data yet.');
+      console.warn('Dashboard bootstrap failed.', error);
+      setNavbarBootstrapData(null);
       setProfileName(readCachedProfileName());
     }
   };
@@ -361,16 +361,19 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
     : Trophy;
 
 
-  const closeAchievementPopup = () => {
-    setAchievementPopup((currentPopup) => {
-      if (!currentPopup) return null;
-
-      currentPopup.achievements.forEach((achievement) => {
-        localStorage.setItem(achievementPopupSeenKey(achievement), 'true');
-      });
-
-      return null;
+  const markAchievementPopupSeen = (achievements: AchievementSummary[]) => {
+    achievements.forEach((achievement) => {
+      localStorage.setItem(achievementPopupSeenKey(achievement), 'true');
     });
+  };
+
+  const closeAchievementPopup = () => {
+    const dismissedAchievements = achievementPopup?.achievements ?? [];
+    setAchievementPopup(null);
+
+    if (dismissedAchievements.length > 0) {
+      markAchievementPopupSeen(dismissedAchievements);
+    }
   };
 
   const stats = [
@@ -420,6 +423,8 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
           currentPage="dashboard"
           theme={theme}
           onToggleTheme={onToggleTheme}
+          bootstrapData={navbarBootstrapData}
+          deferInitialLoad={!loadError}
         />
 
         <main className="flex-1 overflow-auto p-5 sm:p-6 lg:p-8">

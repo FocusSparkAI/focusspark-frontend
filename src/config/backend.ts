@@ -42,6 +42,10 @@ export const BACKEND_ROUTES = {
       analytics: '/study/stats/analytics',
       dashboard: '/study/stats/dashboard',
     },
+    dashboard: {
+      frontend: '/study/dashboard/frontend',
+      extension: '/study/dashboard/extension',
+    },
     goals: {
       list: '/study/goals',
       create: '/study/goals',

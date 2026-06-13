@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Navigation } from '../components/layout/Navigation';
 import { HeroSection } from '../pages/home/HeroSection';
@@ -48,12 +48,12 @@ function AppRoutes() {
     return savedTheme === 'dark' ? 'dark' : DEFAULT_THEME;
   });
 
-  const applyTheme = (newTheme: 'light' | 'dark') => {
+  const applyTheme = useCallback((newTheme: 'light' | 'dark') => {
     setTheme(newTheme);
     localStorage.setItem('focusspark-theme', newTheme);
     if (newTheme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
-  };
+  }, []);
 
   const saveThemePreference = async (newTheme: 'light' | 'dark') => {
     const token = localStorage.getItem('auth_token');
@@ -76,7 +76,7 @@ function AppRoutes() {
     }
   };
 
-  const loadThemePreference = async () => {
+  const loadThemePreference = useCallback(async () => {
     const token = localStorage.getItem('auth_token');
     if (!token) return;
 
@@ -97,7 +97,7 @@ function AppRoutes() {
     } catch {
       // Keep the locally selected theme if backend settings are unavailable.
     }
-  };
+  }, [applyTheme]);
 
   const applyThemeAndSave = (newTheme: 'light' | 'dark') => {
     applyTheme(newTheme);
@@ -183,9 +183,11 @@ function AppRoutes() {
 
   useEffect(() => {
     if (!publicPaths.has(location.pathname)) {
-      void loadThemePreference();
+      const timeoutId = window.setTimeout(() => void loadThemePreference(), 0);
+      return () => window.clearTimeout(timeoutId);
     }
-  }, [location.pathname]);
+    return undefined;
+  }, [loadThemePreference, location.pathname]);
 
   useEffect(() => {
     unlockNotificationSound();

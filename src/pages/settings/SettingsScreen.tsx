@@ -24,6 +24,8 @@ import {
   Shield,
   ChevronRight,
   Bot,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -80,6 +82,9 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Pomodoro settings
   const [pomodoroWork, setPomodoroWork] = useState(25);
@@ -488,36 +493,78 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
                         <div className="grid gap-4">
                           <div>
                             <Label htmlFor="current-password">Current Password</Label>
-                            <Input
-                              id="current-password"
-                              type="password"
-                              autoComplete="off"
-                              value={currentPassword}
-                              onChange={(e) => setCurrentPassword(e.target.value)}
-                              className="mt-2"
-                            />
+                            <div className="relative mt-2">
+                              <Input
+                                id="current-password"
+                                type={showCurrentPassword ? 'text' : 'password'}
+                                autoComplete="off"
+                                value={currentPassword}
+                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                className="pr-11"
+                              />
+                              <button
+                                type="button"
+                                aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                                onClick={() => setShowCurrentPassword((value) => !value)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                              >
+                                {showCurrentPassword ? (
+                                  <EyeOff className="h-5 w-5" />
+                                ) : (
+                                  <Eye className="h-5 w-5" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                           <div>
                             <Label htmlFor="new-password">New Password</Label>
-                            <Input
-                              id="new-password"
-                              type="password"
-                              autoComplete="new-password"
-                              value={newPassword}
-                              onChange={(e) => setNewPassword(e.target.value)}
-                              className="mt-2"
-                            />
+                            <div className="relative mt-2">
+                              <Input
+                                id="new-password"
+                                type={showNewPassword ? 'text' : 'password'}
+                                autoComplete="new-password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="pr-11"
+                              />
+                              <button
+                                type="button"
+                                aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                                onClick={() => setShowNewPassword((value) => !value)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                              >
+                                {showNewPassword ? (
+                                  <EyeOff className="h-5 w-5" />
+                                ) : (
+                                  <Eye className="h-5 w-5" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                           <div>
                             <Label htmlFor="confirm-password">Confirm New Password</Label>
-                            <Input
-                              id="confirm-password"
-                              type="password"
-                              autoComplete="new-password"
-                              value={confirmPassword}
-                              onChange={(e) => setConfirmPassword(e.target.value)}
-                              className="mt-2"
-                            />
+                            <div className="relative mt-2">
+                              <Input
+                                id="confirm-password"
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                autoComplete="new-password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                className="pr-11"
+                              />
+                              <button
+                                type="button"
+                                aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                                onClick={() => setShowConfirmPassword((value) => !value)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                              >
+                                {showConfirmPassword ? (
+                                  <EyeOff className="h-5 w-5" />
+                                ) : (
+                                  <Eye className="h-5 w-5" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </div>
                         <div className="mt-2">

@@ -30,7 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { playSoundForNewUnreadNotifications, unlockNotificationSound } from '../../utils/notificationSound';
 import { formatUserDate, parseBackendDate, setUserTimeZone } from '../../utils/timezone';
-import { clearLocalStorageForLogout } from '../../utils/logoutStorage';
+import { logoutAndClearLocalStorage } from '../../utils/logoutStorage';
 
 function resolveAssetUrl(url: string) {
   if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
@@ -42,6 +42,8 @@ interface DashboardNavbarProps {
   currentPage?: string;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  bootstrapData?: DashboardNavbarBootstrap | null;
+  deferInitialLoad?: boolean;
 }
 
 type DashboardNotification = {
@@ -51,6 +53,25 @@ type DashboardNotification = {
   message: string;
   read: boolean;
   created_at: string;
+};
+
+export type DashboardNavbarBootstrap = {
+  profile?: {
+    full_name?: string;
+    fullName?: string;
+    name?: string;
+    avatar_url?: string;
+    avatarUrl?: string;
+    timezone?: string;
+  };
+  settings?: {
+    accessibility?: {
+      notification_sound?: boolean;
+    };
+  };
+  notifications?: {
+    items?: DashboardNotification[];
+  };
 };
 
 const PROFILE_NAME_STORAGE_KEY = 'focusspark-profile-name';
@@ -112,6 +133,8 @@ export function DashboardNavbar({
   currentPage = 'dashboard',
   theme,
   onToggleTheme,
+  bootstrapData,
+  deferInitialLoad = false,
 }: DashboardNavbarProps) {
   const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
@@ -121,6 +144,32 @@ export function DashboardNavbar({
 
   const unreadNotifications = notifications.filter((notification) => !notification.read);
   const unreadCount = unreadNotifications.length;
+
+  useEffect(() => {
+    if (!bootstrapData) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const profile = bootstrapData.profile ?? {};
+      setUserTimeZone(profile.timezone);
+      const nextAvatarUrl = resolveAssetUrl(profile.avatar_url ?? profile.avatarUrl ?? '');
+      const nextDisplayName = profile.full_name ?? profile.fullName ?? profile.name ?? '';
+      setAvatarUrl(nextAvatarUrl);
+      setDisplayName(nextDisplayName);
+      if (nextAvatarUrl) localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, nextAvatarUrl);
+      else localStorage.removeItem(PROFILE_AVATAR_STORAGE_KEY);
+      if (nextDisplayName) localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextDisplayName);
+      else localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
+
+      const bootstrapNotifications = bootstrapData.notifications?.items;
+      if (Array.isArray(bootstrapNotifications)) {
+        setNotifications(bootstrapNotifications);
+        setNotificationsError(false);
+        setNotificationsLoading(false);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [bootstrapData]);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -176,9 +225,10 @@ export function DashboardNavbar({
 
   useEffect(() => {
     unlockNotificationSound();
+    if (deferInitialLoad) return undefined;
     const timeoutId = window.setTimeout(() => void loadNotifications(), 0);
     return () => window.clearTimeout(timeoutId);
-  }, [loadNotifications]);
+  }, [deferInitialLoad, loadNotifications]);
 
   useEffect(() => {
     let timeoutId: number | undefined;
@@ -200,9 +250,10 @@ export function DashboardNavbar({
   }, [loadNotifications]);
 
   useEffect(() => {
+    if (deferInitialLoad) return undefined;
     const timeoutId = window.setTimeout(() => void loadProfile(), 0);
     return () => window.clearTimeout(timeoutId);
-  }, [loadProfile]);
+  }, [deferInitialLoad, loadProfile]);
 
   useEffect(() => {
     const onProfileUpdated = (event: Event) => {
@@ -452,8 +503,8 @@ export function DashboardNavbar({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => {
-                  clearLocalStorageForLogout();
+                onClick={async () => {
+                  await logoutAndClearLocalStorage();
                   onNavigate?.('home');
                 }}
               >
