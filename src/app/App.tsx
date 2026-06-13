@@ -37,6 +37,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 const publicPages = new Set(['home', 'science', 'about', 'contact', 'signin', 'signup', 'forgot-password', 'verify-email']);
 const publicPaths = new Set(['/', '/science', '/about', '/contact', '/signin', '/signup', '/forgot-password', '/verify-email']);
+const DEFAULT_THEME = 'light';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ function AppRoutes() {
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const savedTheme = localStorage.getItem('focusspark-theme');
-    return savedTheme === 'dark' ? 'dark' : 'light';
+    return savedTheme === 'dark' ? 'dark' : DEFAULT_THEME;
   });
 
   const applyTheme = (newTheme: 'light' | 'dark') => {
@@ -72,6 +73,29 @@ function AppRoutes() {
       });
     } catch {
       // Local theme still applies immediately; backend sync can recover later.
+    }
+  };
+
+  const loadThemePreference = async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    try {
+      const response = await fetch(buildBackendUrl(BACKEND_ROUTES.study.settings.get), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const savedTheme =
+        data?.appearance?.theme ??
+        (typeof data?.dark_mode === 'boolean' ? (data.dark_mode ? 'dark' : 'light') : null);
+
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        applyTheme(savedTheme);
+      }
+    } catch {
+      // Keep the locally selected theme if backend settings are unavailable.
     }
   };
 
@@ -124,6 +148,7 @@ function AppRoutes() {
   };
 
   const handleAuthSuccess = (isNew?: boolean) => {
+    void loadThemePreference();
     if (isNew) navigate('/onboarding');
     else navigate('/dashboard');
   };
@@ -155,6 +180,12 @@ function AppRoutes() {
       navigate('/signin', { replace: true, state: { fromProtected: true } });
     }
   }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    if (!publicPaths.has(location.pathname)) {
+      void loadThemePreference();
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     unlockNotificationSound();

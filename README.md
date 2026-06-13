@@ -4,6 +4,8 @@ Public web application for FocusSpark, an AI-assisted study platform that helps 
 
 The Chrome-extension study workspace lives in `FocusSpark-Extension`.
 
+For the complete multi-project setup, start with the root `README.md`.
+
 ## Tech Stack
 
 - React 19
@@ -42,9 +44,17 @@ The frontend expects the FastAPI backend to be running and reachable at this URL
 
 `VITE_BACKEND_BASE_URL` is required. The app throws during startup if it is missing.
 
+## Prerequisites
+
+- Node.js 20 or newer
+- npm 10 or newer
+
 ## Install And Run
 
+From this folder:
+
 ```bash
+cd FocusSpark-Frontend
 npm install
 npm run dev
 ```
@@ -53,7 +63,10 @@ Open the URL printed by Vite. The project is configured for `http://localhost:30
 
 ## Build And Preview
 
+From this folder:
+
 ```bash
+cd FocusSpark-Frontend
 npm run build
 npm run preview
 ```
@@ -98,6 +111,8 @@ npm run preview  # Preview the production build locally
 ## Backend Integration
 
 The app calls the FastAPI backend through `src/config/backend.ts`.
+
+The backend should be running before using authenticated dashboard pages. The extension also depends on this web app for web-only handoffs such as signup, forgot password, achievements, profile, settings, and notifications.
 
 Main route groups used:
 

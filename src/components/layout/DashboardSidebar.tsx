@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '../../utils/classNames';
+import { clearLocalStorageForLogout } from '../../utils/logoutStorage';
 
 interface DashboardSidebarProps {
   collapsed: boolean;
@@ -125,7 +126,7 @@ export function DashboardSidebar({
       <div className="border-t border-border" style={{ padding: 14 }}>
         <motion.button
           onClick={() => {
-            localStorage.removeItem('auth_token');
+            clearLocalStorageForLogout();
             onNavigate('home');
           }}
           className="w-full flex items-center gap-3 hover:bg-destructive/10 transition-colors text-destructive group"

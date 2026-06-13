@@ -157,8 +157,7 @@ export function SettingsScreen({ onNavigate, theme, onThemeChange }: SettingsScr
               : 'light'
             : null);
 
-        const localTheme = localStorage.getItem('focusspark-theme');
-        if (!localTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+        if (savedTheme === 'light' || savedTheme === 'dark') {
           onThemeChange(savedTheme);
         }
 

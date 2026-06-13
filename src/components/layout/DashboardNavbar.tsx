@@ -30,6 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
 import { playSoundForNewUnreadNotifications, unlockNotificationSound } from '../../utils/notificationSound';
 import { formatUserDate, parseBackendDate, setUserTimeZone } from '../../utils/timezone';
+import { clearLocalStorageForLogout } from '../../utils/logoutStorage';
 
 function resolveAssetUrl(url: string) {
   if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
@@ -160,7 +161,6 @@ export function DashboardNavbar({
       const soundEnabled = await loadNotificationSoundPreference();
       const response = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.notifications.list), {
         headers: getAuthHeaders(),
-        params: { limit: 10 },
       });
       const nextNotifications = Array.isArray(response.data) ? response.data : [];
       setNotifications(nextNotifications);
@@ -330,7 +330,7 @@ export function DashboardNavbar({
                 <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
               )}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-80">
+            <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
               <DropdownMenuLabel className="flex items-center justify-between gap-3">
                 <span>Notifications</span>
                 {unreadCount > 0 && (
@@ -348,7 +348,10 @@ export function DashboardNavbar({
                 )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <div className="max-h-96 space-y-2 overflow-y-auto p-2">
+              <div
+                className="space-y-2 overflow-y-auto p-2"
+                style={{ maxHeight: 'calc(100vh - 10rem)', scrollbarGutter: 'stable' }}
+              >
                 {notificationsLoading && (
                   <div className="rounded-lg border border-border bg-background p-3 text-sm text-secondary">
                     Loading notifications...
@@ -450,7 +453,7 @@ export function DashboardNavbar({
               <DropdownMenuItem
                 className="text-destructive"
                 onClick={() => {
-                  localStorage.removeItem('auth_token');
+                  clearLocalStorageForLogout();
                   onNavigate?.('home');
                 }}
               >
