@@ -119,19 +119,23 @@ function readCachedProfileName() {
 
 function AchievementCelebrationPopup({
   isVisible,
-  achievement,
+  achievements,
   Icon,
   onClose,
   onViewBadges,
 }: {
   isVisible: boolean;
-  achievement: AchievementSummary | null;
+  achievements: AchievementSummary[];
   Icon: LucideIcon;
   onClose: () => void;
   onViewBadges: () => void;
 }) {
+  const achievement = achievements[0] ?? null;
+  const achievementCount = achievements.length;
+  const hasMultipleAchievements = achievementCount > 1;
+
   useEffect(() => {
-    if (!isVisible || !achievement) return;
+    if (!isVisible || achievementCount === 0) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const colors = ['#3b82f6', '#8b5cf6', '#14b8a6', '#f59e0b', '#ef4444'];
@@ -163,7 +167,7 @@ function AchievementCelebrationPopup({
       window.clearTimeout(timeoutId);
       particles.forEach((particle) => particle.remove());
     };
-  }, [achievement, isVisible]);
+  }, [achievementCount, isVisible]);
 
   if (!isVisible || !achievement) return null;
 
@@ -193,10 +197,25 @@ function AchievementCelebrationPopup({
                 </div>
               </motion.div>
 
-              <h2 className="gradient-text mb-2 text-3xl font-semibold tracking-normal">Achievement Unlocked!</h2>
-              <p className="mb-4 text-xl text-foreground">{achievement.title}</p>
+              <h2 className="gradient-text mb-2 text-3xl font-semibold tracking-normal">
+                {hasMultipleAchievements ? 'Multiple Achievements Unlocked!' : 'Achievement Unlocked!'}
+              </h2>
+              <p className="mb-4 text-xl text-foreground">
+                {hasMultipleAchievements
+                  ? `${achievementCount} achievements unlocked`
+                  : achievement.title}
+              </p>
 
-              {achievement.description && (
+              {hasMultipleAchievements ? (
+                <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+                  <div className="flex items-start justify-center gap-2">
+                    <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
+                    <p className="text-sm leading-6 text-secondary">
+                      Your latest progress unlocked more than one badge. View your achievements to see the full set.
+                    </p>
+                  </div>
+                </div>
+              ) : achievement.description && (
                 <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
                   <div className="flex items-start justify-center gap-2">
                     <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
@@ -337,23 +356,20 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
     ? Math.round((Number(activeGoal.current_minutes ?? 0) / Number(activeGoal.target_minutes)) * 100)
     : 0;
   const activeGoalProgressWidth = Math.min(100, Math.max(activeGoalProgress > 0 ? 8 : 0, activeGoalProgress));
-  const AchievementPopupIcon = achievementPopup
+  const AchievementPopupIcon = achievementPopup && achievementPopup.achievements.length === 1
     ? iconByBadgeName[achievementPopup.achievements[0]?.badgeIcon ?? ''] ?? Award
-    : Award;
+    : Trophy;
 
 
   const closeAchievementPopup = () => {
     setAchievementPopup((currentPopup) => {
       if (!currentPopup) return null;
 
-      const [currentAchievement, ...remainingAchievements] = currentPopup.achievements;
-      if (currentAchievement) {
-        localStorage.setItem(achievementPopupSeenKey(currentAchievement), 'true');
-      }
+      currentPopup.achievements.forEach((achievement) => {
+        localStorage.setItem(achievementPopupSeenKey(achievement), 'true');
+      });
 
-      return remainingAchievements.length > 0
-        ? { achievements: remainingAchievements }
-        : null;
+      return null;
     });
   };
 
@@ -749,7 +765,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
 
       <AchievementCelebrationPopup
         isVisible={achievementPopup !== null}
-        achievement={achievementPopup?.achievements[0] ?? null}
+        achievements={achievementPopup?.achievements ?? []}
         Icon={AchievementPopupIcon}
         onClose={closeAchievementPopup}
         onViewBadges={() => {
