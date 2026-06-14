@@ -89,7 +89,7 @@ export function Navigation({
               onClick={() => navigateAndClose('signup')}
               className="hidden bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all md:inline-flex"
             >
-              Sign Up
+              Get Started
             </Button>
 
             <Button
@@ -141,7 +141,7 @@ export function Navigation({
               onClick={() => navigateAndClose('signup')}
               className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-all"
             >
-              Sign Up
+              Get Started
             </Button>
           </div>
         </div>

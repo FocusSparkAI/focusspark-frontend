@@ -33,7 +33,7 @@ Expected result: Vite prints a local URL, normally `http://localhost:3000`, and 
 
 ## Features
 
-- Public landing, About, Contact, and Science pages
+- Public landing, About, Contact, Science, Privacy, and Terms pages
 - Public Science white paper download at `/focusspark-white-paper.pdf`
 - Signup, signin, forgot-password flow, server-backed logout, and protected routes
 - Onboarding flow
@@ -63,7 +63,7 @@ The frontend expects the FastAPI backend to be running and reachable at this URL
 
 ## Install And Run
 
-From this folder:
+From `FocusSpark-Frontend/`:
 
 ```bash
 cd FocusSpark-Frontend
@@ -95,6 +95,8 @@ Public routes:
 - `/science`
 - `/about`
 - `/contact`
+- `/privacy`
+- `/terms`
 - `/signin`
 - `/signup`
 - `/forgot-password`
@@ -156,6 +158,20 @@ Reports use backend study analytics and export APIs. Browser-generated PDF expor
 
 Logout calls `POST /auth/logout` to invalidate the current token on the backend, then clears local auth data while preserving the saved theme.
 
+## Project Structure
+
+```text
+src/app/          Routing, route guards, and app shell
+src/components/   Shared layout and UI components
+src/config/       Backend URL and route helpers
+src/context/      Shared focus/session context
+src/hooks/        Reusable React hooks
+src/pages/        Public, auth, onboarding, and dashboard pages
+src/styles/       Tailwind and global styles
+src/utils/        API, storage, notification, and formatting helpers
+public/           Static public assets
+```
+
 ## Important Files
 
 ```text
@@ -168,6 +184,8 @@ src/pages/profile/ProfileScreen.tsx     # Profile and profile-picture management
 src/pages/settings/SettingsScreen.tsx   # Account and user preferences
 src/pages/reports/ReportsAnalytics.tsx  # Reports, analytics, exports
 src/pages/static/SciencePage.tsx        # Public Science page and PDF download
+src/pages/static/PrivacyPage.tsx        # Public Privacy page
+src/pages/static/TermsPage.tsx          # Public Terms page
 src/pages/notifications/NotificationsPage.tsx
 src/components/layout/DashboardNavbar.tsx
 public/focusspark-white-paper.pdf
@@ -194,3 +212,10 @@ public/focusspark-white-paper.pdf
 - The settings label "Extension Notifications" controls extension behavior through the backend `notifications_enabled` setting.
 - Signup styling uses shared dark input rules plus local `shake` and `confetti` animation classes from `src/styles/globals.css`.
 - Keep website-only pages in this project and extension-only study workspace screens in `FocusSpark-Extension`.
+
+## Troubleshooting
+
+- Missing `.env`: create `FocusSpark-Frontend/.env` and set `VITE_BACKEND_BASE_URL=http://127.0.0.1:8000`.
+- Backend connection errors: start the FastAPI backend and confirm it is reachable at `VITE_BACKEND_BASE_URL`.
+- Port `3000` already in use: stop the other process or change `server.port` in `vite.config.ts`.
+- Authenticated pages redirect unexpectedly: sign in again and confirm the backend auth routes are running.

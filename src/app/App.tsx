@@ -9,6 +9,8 @@ import { Testimonials } from '../pages/home/Testimonials';
 import { SciencePage } from '../pages/static/SciencePage';
 import { AboutPage } from '../pages/static/AboutPage';
 import { ContactPage } from '../pages/static/ContactPage';
+import { PrivacyPage } from '../pages/static/PrivacyPage';
+import { TermsPage } from '../pages/static/TermsPage';
 import { SignInPage } from '../pages/auth/SignInPage';
 import { SignUpPage } from '../pages/auth/SignUpPage';
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
@@ -35,8 +37,8 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children;
 }
 
-const publicPages = new Set(['home', 'science', 'about', 'contact', 'signin', 'signup', 'forgot-password', 'verify-email']);
-const publicPaths = new Set(['/', '/science', '/about', '/contact', '/signin', '/signup', '/forgot-password', '/verify-email']);
+const publicPages = new Set(['home', 'science', 'about', 'contact', 'privacy', 'terms', 'signin', 'signup', 'forgot-password', 'verify-email']);
+const publicPaths = new Set(['/', '/science', '/about', '/contact', '/privacy', '/terms', '/signin', '/signup', '/forgot-password', '/verify-email']);
 const DEFAULT_THEME = 'light';
 
 function AppRoutes() {
@@ -123,6 +125,8 @@ function AppRoutes() {
       science: '/science',
       about: '/about',
       contact: '/contact',
+      privacy: '/privacy',
+      terms: '/terms',
       signin: '/signin',
       signup: '/signup',
       'forgot-password': '/forgot-password',
@@ -219,6 +223,8 @@ function AppRoutes() {
         <Route path="/science" element={<SciencePage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/signin" element={<SignInPage onNavigate={handleNavigate} onAuthSuccess={handleAuthSuccess} />} />
         <Route path="/signup" element={<SignUpPage onNavigate={handleNavigate} />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigate} />} />
