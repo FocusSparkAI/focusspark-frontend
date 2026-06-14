@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Navigation } from '../components/layout/Navigation';
 import { HeroSection } from '../pages/home/HeroSection';
@@ -9,6 +9,8 @@ import { Testimonials } from '../pages/home/Testimonials';
 import { SciencePage } from '../pages/static/SciencePage';
 import { AboutPage } from '../pages/static/AboutPage';
 import { ContactPage } from '../pages/static/ContactPage';
+import { PrivacyPage } from '../pages/static/PrivacyPage';
+import { TermsPage } from '../pages/static/TermsPage';
 import { SignInPage } from '../pages/auth/SignInPage';
 import { SignUpPage } from '../pages/auth/SignUpPage';
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
@@ -35,8 +37,9 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children;
 }
 
-const publicPages = new Set(['home', 'science', 'about', 'contact', 'signin', 'signup', 'forgot-password', 'verify-email']);
-const publicPaths = new Set(['/', '/science', '/about', '/contact', '/signin', '/signup', '/forgot-password', '/verify-email']);
+const publicPages = new Set(['home', 'science', 'about', 'contact', 'privacy', 'terms', 'signin', 'signup', 'forgot-password', 'verify-email']);
+const publicPaths = new Set(['/', '/science', '/about', '/contact', '/privacy', '/terms', '/signin', '/signup', '/forgot-password', '/verify-email']);
+const DEFAULT_THEME = 'light';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -44,15 +47,15 @@ function AppRoutes() {
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const savedTheme = localStorage.getItem('focusspark-theme');
-    return savedTheme === 'dark' ? 'dark' : 'light';
+    return savedTheme === 'dark' ? 'dark' : DEFAULT_THEME;
   });
 
-  const applyTheme = (newTheme: 'light' | 'dark') => {
+  const applyTheme = useCallback((newTheme: 'light' | 'dark') => {
     setTheme(newTheme);
     localStorage.setItem('focusspark-theme', newTheme);
     if (newTheme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
-  };
+  }, []);
 
   const saveThemePreference = async (newTheme: 'light' | 'dark') => {
     const token = localStorage.getItem('auth_token');
@@ -74,6 +77,29 @@ function AppRoutes() {
       // Local theme still applies immediately; backend sync can recover later.
     }
   };
+
+  const loadThemePreference = useCallback(async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    try {
+      const response = await fetch(buildBackendUrl(BACKEND_ROUTES.study.settings.get), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const savedTheme =
+        data?.appearance?.theme ??
+        (typeof data?.dark_mode === 'boolean' ? (data.dark_mode ? 'dark' : 'light') : null);
+
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        applyTheme(savedTheme);
+      }
+    } catch {
+      // Keep the locally selected theme if backend settings are unavailable.
+    }
+  }, [applyTheme]);
 
   const applyThemeAndSave = (newTheme: 'light' | 'dark') => {
     applyTheme(newTheme);
@@ -99,6 +125,8 @@ function AppRoutes() {
       science: '/science',
       about: '/about',
       contact: '/contact',
+      privacy: '/privacy',
+      terms: '/terms',
       signin: '/signin',
       signup: '/signup',
       'forgot-password': '/forgot-password',
@@ -124,6 +152,7 @@ function AppRoutes() {
   };
 
   const handleAuthSuccess = (isNew?: boolean) => {
+    void loadThemePreference();
     if (isNew) navigate('/onboarding');
     else navigate('/dashboard');
   };
@@ -157,6 +186,14 @@ function AppRoutes() {
   }, [location.pathname, navigate]);
 
   useEffect(() => {
+    if (!publicPaths.has(location.pathname)) {
+      const timeoutId = window.setTimeout(() => void loadThemePreference(), 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+    return undefined;
+  }, [loadThemePreference, location.pathname]);
+
+  useEffect(() => {
     unlockNotificationSound();
   }, []);
 
@@ -186,6 +223,8 @@ function AppRoutes() {
         <Route path="/science" element={<SciencePage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/signin" element={<SignInPage onNavigate={handleNavigate} onAuthSuccess={handleAuthSuccess} />} />
         <Route path="/signup" element={<SignUpPage onNavigate={handleNavigate} />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigate} />} />

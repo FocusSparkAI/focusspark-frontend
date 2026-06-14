@@ -76,6 +76,9 @@ const downloadCsv = (filename: string, rows: unknown[][]) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
+const getDailyDistractions = (item: ApiRecord) =>
+  Number(item.distractions ?? item.distraction_count ?? item.distractionCount ?? 0);
+
 export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
   const [backendAnalytics, setBackendAnalytics] = useState<ApiRecord | null>(null);
   const [backendSummary, setBackendSummary] = useState<ApiRecord | null>(null);
@@ -112,7 +115,7 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
     return (backendAnalytics.daily_focus as ApiRecord[]).map((item) => ({
       date: getString(item.day),
       minutes: Number(item.minutes ?? 0),
-      distractions: Number(item.distractions ?? 0),
+      distractions: getDailyDistractions(item),
       accuracy: Number(item.focus_score ?? 0),
     }));
   }, [backendAnalytics]);
@@ -352,13 +355,23 @@ export function AnalyticsDashboard({ onNavigate }: AnalyticsDashboardProps) {
                             borderRadius: '8px',
                           }}
                         />
+                        <Legend />
                         <Line
                           type="monotone"
                           dataKey="minutes"
                           stroke="url(#focusGradient)"
                           strokeWidth={3}
+                          name="Focus Minutes"
                           dot={{ fill: '#3b82f6', r: 6 }}
                           activeDot={{ r: 8 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="distractions"
+                          stroke="#f59e0b"
+                          strokeWidth={2}
+                          name="Distractions"
+                          dot={{ fill: '#f59e0b', r: 5 }}
                         />
                       </LineChart>
                     </ResponsiveContainer>

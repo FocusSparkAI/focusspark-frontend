@@ -279,7 +279,7 @@ export function AchievementsScreen({ onNavigate }: AchievementsScreenProps) {
         {/* Achievement Grid */}
         {isLoading ? (
           <Card className="border-border bg-card shadow-sm">
-            <CardContent className="flex min-h-[220px] items-center justify-center p-5 text-center text-secondary sm:p-8">
+            <CardContent className="flex min-h-[220px] items-center justify-center px-5 py-6 text-center text-secondary sm:px-8 sm:py-8">
               Loading achievements...
             </CardContent>
           </Card>

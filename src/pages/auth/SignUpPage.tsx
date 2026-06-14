@@ -213,8 +213,8 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
               transition={{ type: 'spring', duration: 0.6 }}
               className="inline-flex items-center gap-2 mb-2"
             >
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Sparkles className="w-7 h-7 text-white" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
+                <Sparkles className="h-5 w-5 text-white" />
               </div>
               <span className="text-lg">FocusSpark</span>
             </motion.div>
@@ -423,11 +423,25 @@ export function SignUpPage({ onNavigate }: SignUpPageProps) {
                 />
                 <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer">
                   I agree to the{' '}
-                  <a href="#" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
+                  <a
+                    href="/privacy"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onNavigate('privacy');
+                    }}
+                    className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
                     privacy policy
                   </a>{' '}
                   and{' '}
-                  <a href="#" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
+                  <a
+                    href="/terms"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onNavigate('terms');
+                    }}
+                    className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
                     terms
                   </a>
                   .

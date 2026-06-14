@@ -52,6 +52,9 @@ type StudySession = ApiRecord & {
   created_at?: string;
   completed?: boolean;
   distraction_count?: number | string;
+  distractionCount?: number | string;
+  distractions?: number | string;
+  distraction_events?: unknown[];
   session_type?: string;
 };
 
@@ -68,6 +71,17 @@ type StudyGoal = ApiRecord & {
 
 const getSessionMinutes = (session: StudySession) =>
   Number(session?.actual_duration_minutes ?? session?.planned_duration_minutes ?? 0);
+
+const getSessionDistractions = (session: StudySession) => {
+  const directCount = session?.distraction_count ?? session?.distractions ?? session?.distractionCount;
+  const parsedCount = Number(directCount);
+
+  if (Number.isFinite(parsedCount)) {
+    return Math.max(0, parsedCount);
+  }
+
+  return Array.isArray(session?.distraction_events) ? session.distraction_events.length : 0;
+};
 
 const HEATMAP_DAYS_PER_WEEK = 7;
 const HEATMAP_LEVELS = [
@@ -209,7 +223,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
       const current = sessionBuckets.get(date) ?? { date, minutes: 0, sessions: 0, distractions: 0 };
       current.minutes += getSessionMinutes(session);
       current.sessions += session?.completed ? 1 : 0;
-      current.distractions += Number(session?.distraction_count ?? 0);
+      current.distractions += getSessionDistractions(session);
       sessionBuckets.set(date, current);
     });
 
@@ -345,7 +359,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
         ? reportWindowSessions.slice(0, 16).map((session) => `
             <div style="display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #e2e8f0;padding:10px 0;color:#475569;font-size:13px">
               <span>${escapeHtml(toDateKey(session.started_at ?? session.created_at, userTimeZone) ?? 'Unknown date')} • ${escapeHtml(session.session_type ?? 'session')}</span>
-              <span>${getSessionMinutes(session)} min • ${Number(session.distraction_count ?? 0)} distractions</span>
+              <span>${getSessionMinutes(session)} min • ${getSessionDistractions(session)} distractions</span>
             </div>
           `).join('')
         : '<div style="color:#64748b;font-size:14px">No sessions in this report window.</div>';
@@ -489,7 +503,7 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
         'Focus Score %',
       ],
       ...reportWindowSessions.map((session) => {
-        const distractions = Number(session.distraction_count ?? 0);
+        const distractions = getSessionDistractions(session);
         const focusScore = session.completed && session.session_type === 'work'
           ? Math.max(0, 100 - distractions * 10)
           : '';
@@ -540,9 +554,9 @@ export function ReportsAnalytics({ onNavigate }: ReportsAnalyticsProps) {
     (session) => session.completed && session.session_type === 'work',
   );
   const reportWindowFocusScores = reportWindowWorkSessions.map((session) =>
-    Number(session?.distraction_count ?? 0) === 0
+    getSessionDistractions(session) === 0
       ? 100
-      : Math.max(0, 100 - Number(session?.distraction_count ?? 0) * 10),
+      : Math.max(0, 100 - getSessionDistractions(session) * 10),
   );
   const reportWindowFocusMinutes = displayedHeatmapData.reduce(
     (sum, day) => sum + (day.inRange ? day.minutes : 0),

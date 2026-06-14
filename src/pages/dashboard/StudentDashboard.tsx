@@ -35,7 +35,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
-import { DashboardNavbar } from '../../components/layout/DashboardNavbar';
+import { DashboardNavbar, type DashboardNavbarBootstrap } from '../../components/layout/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { BACKEND_ROUTES, buildBackendUrl } from '../../config/backend';
@@ -58,6 +58,8 @@ type AchievementSummary = {
   badgeIcon: string;
   unlocked: boolean;
   unlockedAt?: string;
+  notificationId?: number;
+  notificationRead: boolean;
 };
 
 type AchievementPopup = {
@@ -119,19 +121,23 @@ function readCachedProfileName() {
 
 function AchievementCelebrationPopup({
   isVisible,
-  achievement,
+  achievements,
   Icon,
   onClose,
   onViewBadges,
 }: {
   isVisible: boolean;
-  achievement: AchievementSummary | null;
+  achievements: AchievementSummary[];
   Icon: LucideIcon;
   onClose: () => void;
   onViewBadges: () => void;
 }) {
+  const achievement = achievements[0] ?? null;
+  const achievementCount = achievements.length;
+  const hasMultipleAchievements = achievementCount > 1;
+
   useEffect(() => {
-    if (!isVisible || !achievement) return;
+    if (!isVisible || achievementCount === 0) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const colors = ['#3b82f6', '#8b5cf6', '#14b8a6', '#f59e0b', '#ef4444'];
@@ -163,7 +169,7 @@ function AchievementCelebrationPopup({
       window.clearTimeout(timeoutId);
       particles.forEach((particle) => particle.remove());
     };
-  }, [achievement, isVisible]);
+  }, [achievementCount, isVisible]);
 
   if (!isVisible || !achievement) return null;
 
@@ -193,10 +199,25 @@ function AchievementCelebrationPopup({
                 </div>
               </motion.div>
 
-              <h2 className="gradient-text mb-2 text-3xl font-semibold tracking-normal">Achievement Unlocked!</h2>
-              <p className="mb-4 text-xl text-foreground">{achievement.title}</p>
+              <h2 className="gradient-text mb-2 text-3xl font-semibold tracking-normal">
+                {hasMultipleAchievements ? 'Multiple Achievements Unlocked!' : 'Achievement Unlocked!'}
+              </h2>
+              <p className="mb-4 text-xl text-foreground">
+                {hasMultipleAchievements
+                  ? `${achievementCount} achievements unlocked`
+                  : achievement.title}
+              </p>
 
-              {achievement.description && (
+              {hasMultipleAchievements ? (
+                <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+                  <div className="flex items-start justify-center gap-2">
+                    <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
+                    <p className="text-sm leading-6 text-secondary">
+                      Your latest progress unlocked more than one badge. View your achievements to see the full set.
+                    </p>
+                  </div>
+                </div>
+              ) : achievement.description && (
                 <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
                   <div className="flex items-start justify-center gap-2">
                     <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
@@ -229,6 +250,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
   const [profileName, setProfileName] = useState(readCachedProfileName);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [achievementPopup, setAchievementPopup] = useState<AchievementPopup | null>(null);
+  const [navbarBootstrapData, setNavbarBootstrapData] = useState<DashboardNavbarBootstrap | null>(null);
 
   const loadDashboard = async () => {
     const token = localStorage.getItem('auth_token');
@@ -236,26 +258,37 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
     const headers = { Authorization: `Bearer ${token}` };
 
     try {
-      const dashboardResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.stats.dashboard), { headers });
+      const response = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.dashboard.frontend), { headers });
+      const data = response.data ?? {};
 
-      setDashboardStats(dashboardResponse.data);
+      setNavbarBootstrapData(data as DashboardNavbarBootstrap);
+      setDashboardStats(data.dashboard ?? null);
       setLoadError(null);
-    } catch (error) {
-      setLoadError('Could not load dashboard stats yet.');
-      console.warn('Dashboard stats failed.', error);
-    }
 
-    try {
-      const achievementsResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.study.achievements.list), { headers });
+      const profile = data.profile ?? {};
+      setUserTimeZone(profile.timezone);
+      const nextProfileName =
+        profile.full_name ??
+        profile.fullName ??
+        profile.name ??
+        '';
+      setProfileName(nextProfileName);
+      if (nextProfileName) {
+        localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextProfileName);
+      } else {
+        localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
+      }
 
-      const achievements = Array.isArray(achievementsResponse.data)
-        ? (achievementsResponse.data as ApiRecord[]).map((item): AchievementSummary => ({
+      const achievements = Array.isArray(data.unlocked_achievements)
+        ? (data.unlocked_achievements as ApiRecord[]).map((item): AchievementSummary => ({
             id: String(item.id ?? item.key ?? item.title),
             title: getString(item.title) || getString(item.achievement_title, 'Achievement'),
             description: getString(item.description),
             badgeIcon: getString(item.badge_icon).toLowerCase(),
-            unlocked: getBoolean(item.unlocked),
+            unlocked: getBoolean(item.unlocked, true),
             unlockedAt: getString(item.unlocked_at) || undefined,
+            notificationId: getNumber(item.notification_id) || undefined,
+            notificationRead: getBoolean(item.notification_read),
           }))
         : [];
 
@@ -266,7 +299,11 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
           const leftTime = left.unlockedAt ? new Date(left.unlockedAt).getTime() : 0;
           return rightTime - leftTime;
         })
-        .filter((achievement) => localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true');
+        .filter(
+          (achievement) =>
+            !achievement.notificationRead &&
+            localStorage.getItem(achievementPopupSeenKey(achievement)) !== 'true',
+        );
 
       if (unlockedAchievements.length > 0) {
         setAchievementPopup({ achievements: unlockedAchievements });
@@ -277,29 +314,11 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
             created_at: achievement.unlockedAt,
           })),
         );
-        window.dispatchEvent(new CustomEvent('focusspark:notifications-changed'));
       }
     } catch (error) {
-      console.warn('Achievement unlock popup failed.', error);
-    }
-
-    try {
-      const profileResponse = await axios.get(buildBackendUrl(BACKEND_ROUTES.profile.get), {
-        headers,
-      });
-      setUserTimeZone(profileResponse.data?.timezone);
-      const nextProfileName =
-        profileResponse.data?.full_name ??
-        profileResponse.data?.fullName ??
-        profileResponse.data?.name ??
-        '';
-      setProfileName(nextProfileName);
-      if (nextProfileName) {
-        localStorage.setItem(PROFILE_NAME_STORAGE_KEY, nextProfileName);
-      } else {
-        localStorage.removeItem(PROFILE_NAME_STORAGE_KEY);
-      }
-    } catch {
+      setLoadError('Could not load dashboard data yet.');
+      console.warn('Dashboard bootstrap failed.', error);
+      setNavbarBootstrapData(null);
       setProfileName(readCachedProfileName());
     }
   };
@@ -337,24 +356,24 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
     ? Math.round((Number(activeGoal.current_minutes ?? 0) / Number(activeGoal.target_minutes)) * 100)
     : 0;
   const activeGoalProgressWidth = Math.min(100, Math.max(activeGoalProgress > 0 ? 8 : 0, activeGoalProgress));
-  const AchievementPopupIcon = achievementPopup
+  const AchievementPopupIcon = achievementPopup && achievementPopup.achievements.length === 1
     ? iconByBadgeName[achievementPopup.achievements[0]?.badgeIcon ?? ''] ?? Award
-    : Award;
+    : Trophy;
 
+
+  const markAchievementPopupSeen = (achievements: AchievementSummary[]) => {
+    achievements.forEach((achievement) => {
+      localStorage.setItem(achievementPopupSeenKey(achievement), 'true');
+    });
+  };
 
   const closeAchievementPopup = () => {
-    setAchievementPopup((currentPopup) => {
-      if (!currentPopup) return null;
+    const dismissedAchievements = achievementPopup?.achievements ?? [];
+    setAchievementPopup(null);
 
-      const [currentAchievement, ...remainingAchievements] = currentPopup.achievements;
-      if (currentAchievement) {
-        localStorage.setItem(achievementPopupSeenKey(currentAchievement), 'true');
-      }
-
-      return remainingAchievements.length > 0
-        ? { achievements: remainingAchievements }
-        : null;
-    });
+    if (dismissedAchievements.length > 0) {
+      markAchievementPopupSeen(dismissedAchievements);
+    }
   };
 
   const stats = [
@@ -404,6 +423,8 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
           currentPage="dashboard"
           theme={theme}
           onToggleTheme={onToggleTheme}
+          bootstrapData={navbarBootstrapData}
+          deferInitialLoad={!loadError}
         />
 
         <main className="flex-1 overflow-auto p-5 sm:p-6 lg:p-8">
@@ -749,7 +770,7 @@ export function StudentDashboard({ onNavigate, theme, onToggleTheme }: StudentDa
 
       <AchievementCelebrationPopup
         isVisible={achievementPopup !== null}
-        achievement={achievementPopup?.achievements[0] ?? null}
+        achievements={achievementPopup?.achievements ?? []}
         Icon={AchievementPopupIcon}
         onClose={closeAchievementPopup}
         onViewBadges={() => {
